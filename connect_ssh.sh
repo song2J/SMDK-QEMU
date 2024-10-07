@@ -1,2 +1,2 @@
 #!/bin/bash
-ssh root@localhost -p 2242
+ssh qemu@localhost -p 2242

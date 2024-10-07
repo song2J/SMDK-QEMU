@@ -1,0 +1,10 @@
+[options]
+kvm = enabled
+slirp = enabled
+docs = disabled
+plugins = true
+prefix = /usr/local
+
+[properties]
+native_file = ['/home/ejs1214/SMDK/lib/qemu/qemu-8.1.50/build-femu/config-meson.cross']
+
