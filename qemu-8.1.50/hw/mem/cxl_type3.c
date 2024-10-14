@@ -937,6 +937,11 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         ct3d->cxl_dstate.cmmh_size = memory_region_size(pmr);
         ct3d->cxl_dstate.static_mem_size += memory_region_size(pmr);
         g_free(p_name);
+
+        /* FemuCtrl register */
+        cmmh_register_bb_flashOps(ct3d->fc);
+        //init
+        ct3d->fc.flash_ops.init(ct3d->fc);
     }
 
     if (cxl_create_dc_regions(ct3d)) {
@@ -1425,6 +1430,35 @@ static Property ct3_props[] = {
     DEFINE_PROP_UINT8("num-dc-regions", CXLType3Dev, dc.num_regions, 0),
     DEFINE_PROP_LINK("nonvolatile-dc-memdev", CXLType3Dev, dc.host_dc,
                     TYPE_MEMORY_BACKEND, HostMemoryBackend *),
+    /*FemuCtrl*/
+    DEFINE_PROP_UINT16("enable_gc_delay", CXLType3Dev.fc, enable_gc_delay, 0), /* in MB */
+    DEFINE_PROP_UINT16("enable_delay_emu", CXLType3Dev.fc, enable_delay_emu, 0), /* in MB */
+    DEFINE_PROP_STRING("serial", CXLType3Dev.fc, serial),
+    DEFINE_PROP_UINT32("devsz_mb", CXLType3Dev.fc, memsz, 1024), /* in MB */
+    DEFINE_PROP_UINT32("namespaces", CXLType3Dev.fc, num_namespaces, 1),
+    DEFINE_PROP_UINT8("lba_index", CXLType3Dev.fc, lba_index, 0),
+    DEFINE_PROP_UINT8("extended", CXLType3Dev.fc, extended, 0),
+    DEFINE_PROP_UINT8("dpc", CXLType3Dev.fc, dpc, 0),
+    DEFINE_PROP_UINT8("dps", CXLType3Dev.fc, dps, 0),
+    DEFINE_PROP_UINT8("mc", CXLType3Dev.fc, mc, 0),
+    DEFINE_PROP_UINT8("meta", CXLType3Dev.fc, meta, 0),
+    DEFINE_PROP_UINT16("vid", CXLType3Dev.fc, vid, 0x1d1d),
+    DEFINE_PROP_UINT16("did", CXLType3Dev.fc, did, 0x1f1f),
+    DEFINE_PROP_UINT8("flash_type", CXLType3Dev.fc, flash_type, MLC),
+    DEFINE_PROP_INT32("secsz", CXLType3Dev.fc, bb_params.secsz, 512),
+    DEFINE_PROP_INT32("secs_per_pg", CXLType3Dev.fc, bb_params.secs_per_pg, 8),
+    DEFINE_PROP_INT32("pgs_per_blk", CXLType3Dev.fc, bb_params.pgs_per_blk, 256),
+    DEFINE_PROP_INT32("blks_per_pl", CXLType3Dev.fc, bb_params.blks_per_pl, 256),
+    DEFINE_PROP_INT32("pls_per_lun", CXLType3Dev.fc, bb_params.pls_per_lun, 1),
+    DEFINE_PROP_INT32("luns_per_ch", CXLType3Dev.fc, bb_params.luns_per_ch, 8),
+    DEFINE_PROP_INT32("nchs", CXLType3Dev.fc, bb_params.nchs, 8),
+    DEFINE_PROP_INT32("pg_rd_lat", CXLType3Dev.fc, bb_params.pg_rd_lat, 40000),
+    DEFINE_PROP_INT32("pg_wr_lat", CXLType3Dev.fc, bb_params.pg_wr_lat, 200000),
+    DEFINE_PROP_INT32("blk_er_lat", CXLType3Dev.fc, bb_params.blk_er_lat, 2000000),
+    DEFINE_PROP_INT32("ch_xfer_lat", CXLType3Dev.fc, bb_params.ch_xfer_lat, 0),
+    DEFINE_PROP_INT32("gc_thres_pcent", CXLType3Dev.fc bb_params.gc_thres_pcent, 75),
+    DEFINE_PROP_INT32("gc_thres_pcent_high", CXLType3Dev.fc, bb_params.gc_thres_pcent_high, 95),
+ 
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -1,1 +1,1 @@
-system_ss.add(when: 'CONFIG_FEMU_PCI', if_true: files('dma.c', 'intr.c', 'nvme-util.c', 'nvme-admin.c', 'nvme-io.c', 'femu.c', 'nand/nand.c', 'timing-model/timing.c', 'bbssd/bb.c', 'bbssd/ftl.c', 'lib/pqueue.c', 'lib/rte_ring.c'))
+system_ss.add(when: 'CONFIG_CXL_MEM_DEVICE', if_true: files('bbssd/ftl.c', 'lib/pqueue.c', 'lib/rte_ring.c'))
