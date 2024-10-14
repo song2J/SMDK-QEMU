@@ -960,6 +960,8 @@ void ct3_realize(PCIDevice *pci_dev, Error **errp)
     CXLComponentState *cxl_cstate = &ct3d->cxl_cstate;
     ComponentRegisters *regs = &cxl_cstate->crb;
     MemoryRegion *mr = &regs->component_registers;
+    FemuCtrl *fc    = &ct3d->fc;
+
     uint8_t *pci_conf = pci_dev->config;
     unsigned short msix_num = 10;
     int i, rc;

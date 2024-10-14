@@ -16,6 +16,7 @@
 #include "hw/cxl/cxl_events.h"
 
 #include "hw/cxl/cxl_cpmu.h"
+#include "hw/mem/cmm_h/nvme.h"
 /*
  * The following is how a CXL device's Memory Device registers are laid out.
  * The only requirement from the spec is that the capabilities array and the
@@ -498,6 +499,8 @@ struct CXLType3Dev {
         uint8_t num_regions; /* 0-8 regions */
         CXLDCDRegion regions[DCD_MAX_REGION_NUM];
     } dc;
+
+    FemuCtrl fc;
 };
 
 #define TYPE_CXL_TYPE3 "cxl-type3"
