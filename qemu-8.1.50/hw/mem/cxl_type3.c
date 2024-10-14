@@ -168,11 +168,11 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     int rc, i;
     uint64_t vmr_size = 0, pmr_size = 0;
 
-    if (!ct3d->hostpmem && !ct3d->hostvmem && !ct3d->dc.num_regions) {
+    if (!ctd3->hostcmmh && !ct3d->hostpmem && !ct3d->hostvmem && !ct3d->dc.num_regions) {
         return 0;
     }
 
-    if (ct3d->hostpmem && ct3d->hostvmem && ct3d->dc.host_dc) {
+    if ((ct3d->hostcmmh || ct3d->hostpmem) && ct3d->hostvmem && ct3d->dc.host_dc) {
         warn_report("The device has static ram and pmem and dynamic capacity");
     }
 
@@ -188,7 +188,16 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     if (ct3d->hostpmem) {
         nonvolatile_mr = host_memory_backend_get_memory(ct3d->hostpmem);
         if (!nonvolatile_mr) {
-            return -EINVAL;
+            return -einval;
+        }
+        len += CT3_CDAT_NUM_ENTRIES;
+        pmr_size = nonvolatile_mr->size;
+    }
+
+    if (ct3d->hostcmmh) {
+        nonvolatile_mr = host_memory_backend_get_memory(ct3d->hostcmmh);
+        if (!nonvolatile_mr) {
+            return -einval;
         }
         len += CT3_CDAT_NUM_ENTRIES;
         pmr_size = nonvolatile_mr->size;
@@ -481,6 +490,10 @@ static void build_dvsecs(CXLType3Dev *ct3d)
             range2_size_hi = ct3d->hostpmem->size >> 32;
             range2_size_lo = (2 << 5) | (2 << 2) | 0x3 |
                              (ct3d->hostpmem->size & 0xF0000000);
+        } else if (ct3d->hostcmmh) {
+            range2_size_hi = ct3d->hostcmmh->size >> 32;
+            range2_size_lo = (2 << 5) | (2 << 2) | 0x3 |
+                             (ct3d->hostcmmh->size & 0xF0000000);
         } else if (ct3d->dc.host_dc) {
             range2_size_hi = ct3d->dc.host_dc->size >> 32;
             range2_size_lo = (2 << 5) | (2 << 2) | 0x3 |
@@ -490,6 +503,15 @@ static void build_dvsecs(CXLType3Dev *ct3d)
         range1_size_hi = ct3d->hostpmem->size >> 32;
         range1_size_lo = (2 << 5) | (2 << 2) | 0x3 |
                          (ct3d->hostpmem->size & 0xF0000000);
+        if (ct3d->dc.host_dc) {
+            range2_size_hi = ct3d->dc.host_dc->size >> 32;
+            range2_size_lo = (2 << 5) | (2 << 2) | 0x3 |
+                             (ct3d->dc.host_dc->size & 0xF0000000);
+        }
+    } else if (ct3d->hostcmmh) {
+        range1_size_hi = ct3d->hostcmmh->size >> 32;
+        range1_size_lo = (2 << 5) | (2 << 2) | 0x3 |
+                         (ct3d->hostcmmh->size & 0xF0000000);
         if (ct3d->dc.host_dc) {
             range2_size_hi = ct3d->dc.host_dc->size >> 32;
             range2_size_lo = (2 << 5) | (2 << 2) | 0x3 |
@@ -789,6 +811,9 @@ static int cxl_create_dc_regions(CXLType3Dev *ct3d)
     if (ct3d->hostpmem) {
         region_base += ct3d->hostpmem->size;
     }
+    if (ct3d->hostcmmh) {
+        region_base += ct3d->hostcmmh->size;
+    }
 
     for (i = 0; i < ct3d->dc.num_regions; i++) {
         region = &ct3d->dc.regions[i];
@@ -822,12 +847,16 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
 {
     DeviceState *ds = DEVICE(ct3d);
 
-    if (!ct3d->hostmem && !ct3d->hostvmem && !ct3d->hostpmem
+    if (!ct3d->hostmem && !ct3d->hostvmem && !ct3d->hostpmem && !ct3d->hostcmmh
             && !ct3d->dc.num_regions) {
         error_setg(errp, "at least one memdev property must be set");
         return false;
-    } else if (ct3d->hostmem && ct3d->hostpmem) {
+    } else if (ct3d->hostmem && (ct3d->hostpmem || ct3d->hostcmmh)) {
         error_setg(errp, "[memdev] cannot be used with new "
+                         "[persistent-memdev] property");
+        return false;
+    } else if (ct3d->hostpmem && ct3d->hostcmmh) {
+        error_setg(errp, "[cmm-hybrid-memdev] cannot be used with "
                          "[persistent-memdev] property");
         return false;
     } else if (ct3d->hostmem) {
@@ -836,7 +865,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         ct3d->hostmem = NULL;
     }
 
-    if (ct3d->hostpmem && !ct3d->lsa) {
+    if ((ct3d->hostpmem || ct3d->hostcmmh) && !ct3d->lsa) {
         error_setg(errp, "lsa property must be set for persistent devices");
         return false;
     }
@@ -870,7 +899,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
 
         pmr = host_memory_backend_get_memory(ct3d->hostpmem);
         if (!pmr) {
-            error_setg(errp, "persistent memdev must have backing device");
+            error_setg(errp, "cmm-hybrid memdev must have backing device");
             return false;
         }
         memory_region_set_nonvolatile(pmr, true);
@@ -883,6 +912,29 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         }
         address_space_init(&ct3d->hostpmem_as, pmr, p_name);
         ct3d->cxl_dstate.pmem_size = memory_region_size(pmr);
+        ct3d->cxl_dstate.static_mem_size += memory_region_size(pmr);
+        g_free(p_name);
+    }
+
+    if (ct3d->hostcmmh) {
+        MemoryRegion *pmr;
+        char *p_name;
+
+        pmr = host_memory_backend_get_memory(ct3d->hostcmmh);
+        if (!pmr) {
+            error_setg(errp, "persistent memdev must have backing device");
+            return false;
+        }
+        memory_region_set_nonvolatile(pmr, true);
+        memory_region_set_enabled(pmr, true);
+        host_memory_backend_set_mapped(ct3d->hostcmmh, true);
+        if (ds->id) {
+            p_name = g_strdup_printf("cxl-type3-dpa-cmmh-space:%s", ds->id);
+        } else {
+            p_name = g_strdup("cxl-type3-dpa-cmmh-space");
+        }
+        address_space_init(&ct3d->hostcmmh_as, pmr, p_name);
+        ct3d->cxl_dstate.cmmh_size = memory_region_size(pmr);
         ct3d->cxl_dstate.static_mem_size += memory_region_size(pmr);
         g_free(p_name);
     }
@@ -1054,6 +1106,9 @@ err_address_space_free:
     if (ct3d->hostpmem) {
         address_space_destroy(&ct3d->hostpmem_as);
     }
+    if (ct3d->hostcmmh) {
+        address_space_destroy(&ct3d->hostcmmh_as);
+    }
     if (ct3d->hostvmem) {
         address_space_destroy(&ct3d->hostvmem_as);
     }
@@ -1076,6 +1131,9 @@ void ct3_exit(PCIDevice *pci_dev)
     }
     if (ct3d->hostpmem) {
         address_space_destroy(&ct3d->hostpmem_as);
+    }
+    if (ct3d->hostcmmh) {
+        address_space_destroy(&ct3d->hostcmmh_as);
     }
     if (ct3d->hostvmem) {
         address_space_destroy(&ct3d->hostvmem_as);
@@ -1207,8 +1265,8 @@ static int cxl_type3_hpa_to_as_and_dpa(CXLType3Dev *ct3d,
                                        AddressSpace **as,
                                        uint64_t *dpa_offset)
 {
-    MemoryRegion *vmr = NULL, *pmr = NULL, *dc_mr = NULL;
-    uint64_t vmr_size = 0, pmr_size = 0, dc_size = 0;
+    MemoryRegion *vmr = NULL, *pmr = NULL, *nmr = NULL, *dc_mr = NULL;
+    uint64_t vmr_size = 0, pmr_size = 0, nmr_size = 0, dc_size = 0;
 
     if (ct3d->hostvmem) {
         vmr = host_memory_backend_get_memory(ct3d->hostvmem);
@@ -1218,13 +1276,17 @@ static int cxl_type3_hpa_to_as_and_dpa(CXLType3Dev *ct3d,
         pmr = host_memory_backend_get_memory(ct3d->hostpmem);
         pmr_size = memory_region_size(pmr);
     }
+    if (ct3d->hostcmmh) {
+        nmr = host_memory_backend_get_memory(ct3d->hostcmmh);
+        nmr_size = memory_region_size(nmr);
+    }
     if (ct3d->dc.host_dc) {
         dc_mr = host_memory_backend_get_memory(ct3d->dc.host_dc);
         /* Do we want dc_size to be dc_mr->size or not?? */
         dc_size = ct3d->dc.total_capacity;
     }
 
-    if (!vmr && !pmr && !dc_mr) {
+    if (!vmr && !pmr && !nmr && !dc_mr) {
         return -ENODEV;
     }
 
@@ -1232,8 +1294,8 @@ static int cxl_type3_hpa_to_as_and_dpa(CXLType3Dev *ct3d,
         return -EINVAL;
     }
 
-    if ((*dpa_offset >= vmr_size + pmr_size + dc_size) ||
-       (*dpa_offset >= vmr_size + pmr_size && ct3d->dc.num_regions == 0)) {
+    if ((*dpa_offset >= vmr_size + pmr_size + nmr_size + dc_size) ||
+       (*dpa_offset >= vmr_size + pmr_size + nmr_size && ct3d->dc.num_regions == 0)) {
         return -EINVAL;
     }
 
@@ -1242,16 +1304,31 @@ static int cxl_type3_hpa_to_as_and_dpa(CXLType3Dev *ct3d,
     } else if (*dpa_offset < vmr_size + pmr_size) {
         *as = &ct3d->hostpmem_as;
         *dpa_offset -= vmr_size;
+    } else if (*dpa_offset < vmr_size + pmr_size + nmr_size) {
+        *as = &ct3d->hostcmmh_as;
+        *dpa_offset -= (vmr_size + pmr_size);
     } else {
         if (!ct3_test_region_block_backed(ct3d, *dpa_offset, size)) {
             return -ENODEV;
         }
 
         *as = &ct3d->dc.host_dc_as;
-        *dpa_offset -= (vmr_size + pmr_size);
+        *dpa_offset -= (vmr_size + pmr_size + nmr_size);
     }
 
     return 0;
+}
+
+void cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
+                            uint64_t data, unsigned size)
+{
+    /* 
+        TODO:
+        Implement Cache file 
+        Accumulate latency info / cache hit rate
+        if hit: continue
+        if miss: Call NAND FTL
+    */
 }
 
 MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
@@ -1261,6 +1338,7 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
     CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
     uint64_t dpa_offset = 0;
     AddressSpace *as = NULL;
+    FemuCtrl *fc = &ct3d->fc;
     int res;
 
     res = cxl_type3_hpa_to_as_and_dpa(ct3d, host_addr, size,
@@ -1278,6 +1356,10 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
         qemu_guest_getrandom_nofail(data, size);
         return MEMTX_OK;
     }
+
+    if(ct3d->hostcmmh)
+        cmm_h_read(ct3d, as, dpa_offset, attrs, data, size);
+
     return address_space_read(as, dpa_offset, attrs, data, size);
 }
 
@@ -1303,8 +1385,7 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
 
     if (sanitize_running(&ct3d->cci)) {
         return MEMTX_OK;
-    }
-    return address_space_write(as, dpa_offset, attrs, &data, size);
+    } return address_space_write(as, dpa_offset, attrs, &data, size);
 }
 
 void ct3d_reset(DeviceState *dev)
@@ -1333,6 +1414,8 @@ static Property ct3_props[] = {
     DEFINE_PROP_LINK("persistent-memdev", CXLType3Dev, hostpmem,
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
     DEFINE_PROP_LINK("volatile-memdev", CXLType3Dev, hostvmem,
+                     TYPE_MEMORY_BACKEND, HostMemoryBackend *), 
+    DEFINE_PROP_LINK("cmm-hybrid-memdev", CXLType3Dev, hostcmmh, /********* FYI: CMM-H Property **********/
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
     DEFINE_PROP_LINK("lsa", CXLType3Dev, lsa, TYPE_MEMORY_BACKEND,
                      HostMemoryBackend *),
@@ -1408,9 +1491,9 @@ static void set_lsa(CXLType3Dev *ct3d, const void *buf, uint64_t size,
 
 static bool set_cacheline(CXLType3Dev *ct3d, uint64_t dpa_offset, uint8_t *data)
 {
-    MemoryRegion *vmr = NULL, *pmr = NULL, *dc_mr = NULL;
+    MemoryRegion *vmr = NULL, *pmr = NULL, *nmr = NULL, *dc_mr = NULL;
     AddressSpace *as;
-    uint64_t vmr_size = 0, pmr_size = 0, dc_size = 0;
+    uint64_t vmr_size = 0, pmr_size = 0, nmr_size = 0, dc_size = 0;
 
     if (ct3d->hostvmem) {
         vmr = host_memory_backend_get_memory(ct3d->hostvmem);
@@ -1420,19 +1503,23 @@ static bool set_cacheline(CXLType3Dev *ct3d, uint64_t dpa_offset, uint8_t *data)
         pmr = host_memory_backend_get_memory(ct3d->hostpmem);
         pmr_size = memory_region_size(pmr);
     }
+    if (ct3d->hostcmmh) {
+        nmr = host_memory_backend_get_memory(ct3d->hostcmmh);
+        nmr_size = memory_region_size(nmr);
+    }
     if (ct3d->dc.host_dc) {
         dc_mr = host_memory_backend_get_memory(ct3d->dc.host_dc);
         dc_size = ct3d->dc.total_capacity;
      }
 
-    if (!vmr && !pmr && !dc_mr) {
+    if (!vmr && !pmr && !nmr && !dc_mr) {
         return false;
     }
 
-    if (dpa_offset >= vmr_size + pmr_size + dc_size) {
+    if (dpa_offset >= vmr_size + pmr_size + nmr_size + dc_size) {
         return false;
     }
-    if (dpa_offset + CXL_CACHE_LINE_SIZE >= vmr_size + pmr_size
+    if (dpa_offset + CXL_CACHE_LINE_SIZE >= vmr_size + pmr_size + nmr_size
             && ct3d->dc.num_regions == 0) {
         return false;
     }
@@ -1442,9 +1529,12 @@ static bool set_cacheline(CXLType3Dev *ct3d, uint64_t dpa_offset, uint8_t *data)
     } else if (dpa_offset < vmr_size + pmr_size) {
         as = &ct3d->hostpmem_as;
         dpa_offset -= vmr_size;
+    } else if (dpa_offset < vmr_size + pmr_size + nmr_size) {
+        as = &ct3d->hostcmmh_as;
+        dpa_offset -= (vmr_size + pmr_size);
     } else {
         as = &ct3d->dc.host_dc_as;
-        dpa_offset -= (vmr_size + pmr_size);
+        dpa_offset -= (vmr_size + pmr_size + nmr_size);
     }
 
     address_space_write(as, dpa_offset, MEMTXATTRS_UNSPECIFIED, &data,
@@ -1903,6 +1993,7 @@ void qmp_cxl_inject_memory_module_event(const char *path, CxlEventLog log,
                                         uint32_t dirty_shutdown_count,
                                         uint32_t corrected_volatile_error_count,
                                         uint32_t corrected_persist_error_count,
+                                        uint32_t corrected_cmmh_error_count,
                                         Error **errp)
 {
     Object *obj = object_resolve_path(path, NULL);
@@ -1945,6 +2036,8 @@ void qmp_cxl_inject_memory_module_event(const char *path, CxlEventLog log,
     stl_le_p(&module.corrected_volatile_error_count,
              corrected_volatile_error_count);
     stl_le_p(&module.corrected_persistent_error_count,
+             corrected_persist_error_count);
+    stl_le_p(&module.corrected_cmmh_error_count,
              corrected_persist_error_count);
 
     if (cxl_event_insert(cxlds, enc_log, (CXLEventRecordRaw *)&module)) {

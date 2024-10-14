@@ -235,6 +235,7 @@ typedef struct cxl_device_state {
     /* memory region size, HDM */
     uint64_t static_mem_size;
     uint64_t pmem_size;
+    uint64_t cmmh_size;
     uint64_t vmem_size;
     bool is_dcd;
 
@@ -455,12 +456,14 @@ struct CXLType3Dev {
     HostMemoryBackend *hostmem; /* deprecated */
     HostMemoryBackend *hostvmem;
     HostMemoryBackend *hostpmem;
+    HostMemoryBackend *hostcmmh;
     HostMemoryBackend *lsa;
     uint64_t sn;
 
     /* State */
     AddressSpace hostvmem_as;
     AddressSpace hostpmem_as;
+    AddressSpace hostcmmh_as;
     CXLComponentState cxl_cstate;
     CXLDeviceState cxl_dstate;
     CXLCCI cci; /* Primary PCI mailbox CCI */
