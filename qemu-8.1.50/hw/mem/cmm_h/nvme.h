@@ -1196,12 +1196,11 @@ typedef struct FemuExtCtrlOps {
     uint16_t (*get_log)(struct FemuCtrl *, NvmeCmd *);
 } FemuExtCtrlOps;
 
+typedef struct FlashOps{
+    void    (*cmd_to_req)(uint64_t, int, NvmeRequest*);
+    uin64_t (*ftl_io)(FemuCtrl*, NvmeRequest*);
+} FlashOps;
 typedef struct FemuCtrl {
-    PCIDevice       parent_obj;
-    MemoryRegion    iomem;
-    MemoryRegion    ctrl_mem;
-    NvmeBar         bar;
-
     BbCtrlParams bb_params;
 
     struct ssd      *ssd;
@@ -1224,6 +1223,7 @@ typedef struct FemuCtrl {
 
     /* Nand Flash Type: SLC/MLC/TLC/QLC/PLC */
     uint8_t         flash_type;
+    FlashOps        flash_ops;
 } FemuCtrl;
 
 typedef struct NvmePollerThreadArgument {

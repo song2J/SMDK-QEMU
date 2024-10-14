@@ -920,3 +920,30 @@ static void *ftl_thread(void *arg)
 
     return NULL;
 }
+
+uin64_t bbssd_ftl_io(FemuCtrl* n, NvmeRequest* req){
+    ftl_assert(req);
+    uint64_t lat;
+    switch (req->cmd.opcode) {
+    case NVME_CMD_WRITE:
+        lat = ssd_write(ssd, req);
+		printf("FEMU: Femu SSD_WRITE\n");
+        break;
+    case NVME_CMD_READ:
+        lat = ssd_read(ssd, req);
+       	printf("FEMU: Femu SSD_READ\n");
+        break;
+    case NVME_CMD_DSM:
+        lat = 0;
+        break;
+    default:
+        //ftl_err("FTL received unkown request type, ERROR\n");
+        ;
+    }
+    return lat;
+}
+void bbssd_cmd_to_req(uint16_t opcode, uint64_t lba, int size, NvmeRequest* req){
+    req->cmd.opcode = opcode;
+    req->slba = lba;
+    req->nlb = size;
+}
