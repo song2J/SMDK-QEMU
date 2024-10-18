@@ -1,13 +1,18 @@
 #include "cache.h"
 
+inline uint64_t getCacheOffset(CMMHCache* cc, uint64_t dpa)
+{
+    return (dpa & ((1 << cc->page_bits) - 1));
+}
+
 inline uint64_t getCacheTag(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa & cc->tag_bit_mask) >> (cc->page_log_size);
+    return (dpa >> (cc->page_bits + cc->index_bits)) & ((1 << (cc->tag_bits)) - 1);
 }
 
 inline uint64_t getCacheIdx(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa & cc->index_bit_mask) >> (cc->tag_bit_len + cc->page_log_size);
+    return (dpa >> (cc->page_bits)) & ((1 << (cc->index_bits)) - 1);
 }
 
 void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
@@ -58,7 +63,7 @@ bool isCacheHit(CMMHCache* cc, uint64_t dpa, bool if_modify)
     return false;
 }
 
-static bool cacheRead(CMMHCache *cc, uint64_t dpa)
+bool cacheRead(CMMHCache *cc, uint64_t dpa)
 {
     if(isCacheHit(cc, dpa, false)) {
         /* count cache hit */
@@ -67,7 +72,7 @@ static bool cacheRead(CMMHCache *cc, uint64_t dpa)
     }
 }
 
-static bool cacheWrite(CMMHCache *cc, uint64_t dpa)
+bool cacheWrite(CMMHCache *cc, uint64_t dpa)
 {
     if(isCacheHit(cc, dpa, true)) {
         /* count cache hit */
@@ -77,7 +82,29 @@ static bool cacheWrite(CMMHCache *cc, uint64_t dpa)
     
 }
 
-static bool cacheInit(CMMHCache **ccp)
+static bool cacheInit(CMMHCache **ccp, FemuCtrl* fc)
 {
-    
+    *ccp = g_malloc0(sizeof(CMMHCache));
+
+    int page_bits  = fc->page_bits; // NOT SURE IF IT CAN BE USED
+    int index_bits = fc->cache_index_bits;
+    int num_tag     = fc->cache_num_tag;
+
+    (*ccp)->page_bits = page_bits;
+    (*ccp)->index_bits = index_bits;
+    (*ccp)->tag_bits = sizeof(void*) - page_bits - index_bits;
+
+    (*ccp)->num_tag = num_tag;
+
+    (*ccp)->table = g_malloc0(sizeof(CacheNode*) * index_bits);
+    for(int i = 0; i < (1 << index_bits); i++) {
+        for(int j = 0; j < num_tag; j++) {
+            CacheNode* curr = g_malloc0(sizeof(CacheNode));
+            curr->next = (*ccp)->table[i];
+            (*ccp)->table[i] = curr;
+        }
+    }
+
+    (*ccp)->read = cacheRead;
+    (*ccp)->write = cacheWrite;
 }
