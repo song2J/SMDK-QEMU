@@ -504,10 +504,10 @@ struct CXLType3Dev {
         CXLDCDRegion regions[DCD_MAX_REGION_NUM];
     } dc;
 
-    struct cmm_h{
+    struct __cmm_h{
         FemuCtrl fc;
         CMMHCache cache;
-    } cmmh;
+    } cmm_h;
 };
 
 #define TYPE_CXL_TYPE3 "cxl-type3"

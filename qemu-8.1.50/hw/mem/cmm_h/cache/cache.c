@@ -15,6 +15,11 @@ inline uint64_t getCacheIdx(CMMHCache* cc, uint64_t dpa)
     return (dpa >> (cc->page_bits)) & ((1 << (cc->index_bits)) - 1);
 }
 
+inline uint64_t get_dpa(CMMHCache *cc, uint64_t tag, uint64_t idx, uint64_t addr)
+{
+    return (tag << (cc->index_bits + cc->page_bits)) + (idx << cc->page_bits) + addr;
+}
+
 void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
 {
     CacheNode *prev = curr->prev;
@@ -34,10 +39,12 @@ void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
     *head = curr;
 }
 
-bool isCacheHit(CMMHCache* cc, uint64_t dpa, bool if_modify)
+CacheAccessResult accessCache(CMMHCache* cc, uint64_t dpa, 
+                bool if_modify, uint64_t *victim)
 {
     uint64_t tag = getCacheTag(cc, dpa);
     uint64_t idx = getCacheIdx(cc, dpa);
+    bool evict_dirty;
     
     CacheNode *curr = cc->table[idx];
     CacheNode *bef;
@@ -45,44 +52,34 @@ bool isCacheHit(CMMHCache* cc, uint64_t dpa, bool if_modify)
         if(curr->valid && curr->tag == tag) {
             curr->dirty |= if_modify;
             cachePromoteNode(cc, idx, curr);
-            return true;
+            return HIT;
         }
         bef = curr;
         curr = curr->next;
     }
-    /* Evict victim */
-    bef->tag = tag;
-    if(bef->dirty) {
-        /* TODO: NAND Write latency */
-    }
 
-    /* TODO: NAND Read latency */
+    /* CACHE MISS */
+    *victim = get_dpa(cc, bef->tag, idx, 0);
+    evict_dirty = bef->dirty;
+    bef->tag = tag;
+
     curr->dirty = if_modify;
     cachePromoteNode(cc, idx, bef);
 
-    return false;
+    return evict_dirty ? MISS_DIRTY : MISS_CLEAN;
 }
 
-bool cache_read(CMMHCache *cc, uint64_t dpa)
+CacheAccessResult cache_read(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
-    if(isCacheHit(cc, dpa, false)) {
-        /* count read cache hit */
-    } else {
-        /* count read cache miss*/
-    }
+    return accessCache(cc, dpa, false, victim);
 }
 
-bool cache_write(CMMHCache *cc, uint64_t dpa)
+CacheAccessResult cache_write(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
-    if(isCacheHit(cc, dpa, true)) {
-        /* count write cache hit */
-    } else {
-        /* count write cache miss*/
-    }
-    
+    return accessCache(cc, dpa, true, victim);
 }
 
-static bool cache_init(CMMHCache *cache)
+static void cache_init(CMMHCache *cache)
 {
     int index_bits  = cache->index_bits;
     int num_tag     = cache->num_tag;

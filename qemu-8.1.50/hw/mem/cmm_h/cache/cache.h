@@ -4,6 +4,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+typedef enum {
+    HIT = 0,
+    MISS_CLEAN,
+    MISS_DIRTY,
+} CacheAccessResult;
+
 typedef struct CacheNode {
     uint64_t tag;
     bool valid;
@@ -21,11 +27,11 @@ typedef struct CMMHCache {
     int num_tag; // How many tags per each idx?
     CacheNode **table;
 
-    bool (*read)(CMMHCache *cc, uint64_t dpa);
-    bool (*write)(CMMHCache *cc, uint64_t dpa);
+    CacheAccessResult (*read)(CMMHCache *cc, uint64_t dpa, uint64_t* victim);
+    CacheAccessResult (*write)(CMMHCache *cc, uint64_t dpa, uint64_t* victim);
     
 } CMMHCache;
 
-extern bool cache_init(CMMHCache *cache);
+extern void cache_init(CMMHCache *cache);
 
 #endif
