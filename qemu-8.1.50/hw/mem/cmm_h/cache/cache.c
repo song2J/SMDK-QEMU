@@ -1,13 +1,18 @@
 #include "cache.h"
 
+inline uint64_t getCacheOffset(CMMHCache* cc, uint64_t dpa)
+{
+    return (dpa & ((1 << cc->page_bits) - 1));
+}
+
 inline uint64_t getCacheTag(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa & cc->tag_bit_mask) >> (cc->page_log_size);
+    return (dpa >> (cc->page_bits + cc->index_bits)) & ((1 << (cc->tag_bits)) - 1);
 }
 
 inline uint64_t getCacheIdx(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa & cc->index_bit_mask) >> (cc->tag_bit_len + cc->page_log_size);
+    return (dpa >> (cc->page_bits)) & ((1 << (cc->index_bits)) - 1);
 }
 
 void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
@@ -58,26 +63,40 @@ bool isCacheHit(CMMHCache* cc, uint64_t dpa, bool if_modify)
     return false;
 }
 
-static bool cacheRead(CMMHCache *cc, uint64_t dpa)
+bool cache_read(CMMHCache *cc, uint64_t dpa)
 {
     if(isCacheHit(cc, dpa, false)) {
-        /* count cache hit */
+        /* count read cache hit */
     } else {
-        /* count cache miss*/
+        /* count read cache miss*/
     }
 }
 
-static bool cacheWrite(CMMHCache *cc, uint64_t dpa)
+bool cache_write(CMMHCache *cc, uint64_t dpa)
 {
     if(isCacheHit(cc, dpa, true)) {
-        /* count cache hit */
+        /* count write cache hit */
     } else {
-        /* count cache miss*/
+        /* count write cache miss*/
     }
     
 }
 
-static bool cacheInit(CMMHCache **ccp)
+static bool cache_init(CMMHCache *cache)
 {
-    
+    int index_bits  = cache->index_bits;
+    int num_tag     = cache->num_tag;
+
+    cache->table = g_malloc0(sizeof(CacheNode*) * index_bits);
+    for(int i = 0; i < (1 << index_bits); i++) {
+        for(int j = 0; j < num_tag; j++) {
+            CacheNode* curr = g_malloc0(sizeof(CacheNode));
+            cache->table[i]->prev = curr;
+            curr->next = cache->table[i];
+            cache->table[i] = curr;
+        }
+    }
+
+    cache->read = cache_read;
+    cache->write = cache_write;
 }
