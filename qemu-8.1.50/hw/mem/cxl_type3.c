@@ -791,6 +791,63 @@ static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
         hdm_decoder_uncommit(ct3d, which_hdm);
     }
 }
+/* CMM-H
+ * initialize
+ * read
+ * write
+ */
+
+static void cmmh_ctrl_init(CXLType3Dev *ct3d)
+{
+    cmmh_register_bb_flashOps(ct3d->fc);
+    //flash init
+    ct3d->fc.flash_ops.init(ct3d->fc);
+    //cache init
+}
+
+uint64_t cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
+                            uint64_t data, unsigned size)
+{
+    /* 
+        TODO:
+        Implement Cache file 
+        Accumulate latency info / cache hit rate
+        
+        if hit: 
+                updatr LRU
+                return 0
+        if miss:
+                select victim
+                flash write if dirty 
+                flash read
+                init cache
+                write cache
+                update LRU
+                return latency
+    */
+}
+uint64_t cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
+                            uint64_t data, unsigned size)
+{
+    /* 
+        TODO:
+        Implement Cache file 
+        Accumulate latency info / cache hit rate
+        if hit: 
+                dirty = 1
+                update LRU
+                return 0
+        if miss: 
+                select victim
+                flash write if dirty
+                flash read
+                init cache
+                write cache 
+                update LRU
+                dirty = 1
+                return latency
+    */
+}
 
 /*
  * Create dc regions.
@@ -939,9 +996,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         g_free(p_name);
 
         /* FemuCtrl register */
-        cmmh_register_bb_flashOps(ct3d->fc);
-        //init
-        ct3d->fc.flash_ops.init(ct3d->fc);
+        cmmh_ctrl_init(ct3d);
     }
 
     if (cxl_create_dc_regions(ct3d)) {
@@ -1324,17 +1379,6 @@ static int cxl_type3_hpa_to_as_and_dpa(CXLType3Dev *ct3d,
     return 0;
 }
 
-void cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
-                            uint64_t data, unsigned size)
-{
-    /* 
-        TODO:
-        Implement Cache file 
-        Accumulate latency info / cache hit rate
-        if hit: continue
-        if miss: Call NAND FTL
-    */
-}
 
 MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
                            unsigned size, MemTxAttrs attrs)
@@ -1431,17 +1475,12 @@ static Property ct3_props[] = {
     DEFINE_PROP_LINK("nonvolatile-dc-memdev", CXLType3Dev, dc.host_dc,
                     TYPE_MEMORY_BACKEND, HostMemoryBackend *),
     /*FemuCtrl*/
-    DEFINE_PROP_UINT16("enable_gc_delay", CXLType3Dev.fc, enable_gc_delay, 0), /* in MB */
+    DEFINE_PROP_UINT16("enable_gc_delay", CXLType3Dev, fc.enable_gc_delay, 0), /* in MB */
     DEFINE_PROP_UINT16("enable_delay_emu", CXLType3Dev.fc, enable_delay_emu, 0), /* in MB */
     DEFINE_PROP_STRING("serial", CXLType3Dev.fc, serial),
     DEFINE_PROP_UINT32("devsz_mb", CXLType3Dev.fc, memsz, 1024), /* in MB */
     DEFINE_PROP_UINT32("namespaces", CXLType3Dev.fc, num_namespaces, 1),
     DEFINE_PROP_UINT8("lba_index", CXLType3Dev.fc, lba_index, 0),
-    DEFINE_PROP_UINT8("extended", CXLType3Dev.fc, extended, 0),
-    DEFINE_PROP_UINT8("dpc", CXLType3Dev.fc, dpc, 0),
-    DEFINE_PROP_UINT8("dps", CXLType3Dev.fc, dps, 0),
-    DEFINE_PROP_UINT8("mc", CXLType3Dev.fc, mc, 0),
-    DEFINE_PROP_UINT8("meta", CXLType3Dev.fc, meta, 0),
     DEFINE_PROP_UINT16("vid", CXLType3Dev.fc, vid, 0x1d1d),
     DEFINE_PROP_UINT16("did", CXLType3Dev.fc, did, 0x1f1f),
     DEFINE_PROP_UINT8("flash_type", CXLType3Dev.fc, flash_type, MLC),

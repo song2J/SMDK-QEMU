@@ -12,30 +12,14 @@
 #include "qapi/error.h"
 #include "sysemu/kvm.h"
 
-#include "backend/dram.h"
 #include "inc/rte_ring.h"
 #include "inc/pqueue.h"
 #include "nand/nand.h"
 #include "timing-model/timing.h"
 
-#define NVME_ID_NS_LBADS(ns)                                                  \
-    ((ns)->id_ns.lbaf[NVME_ID_NS_FLBAS_INDEX((ns)->id_ns.flbas)].lbads)
-
-#define NVME_ID_NS_LBADS_BYTES(ns) (1 << NVME_ID_NS_LBADS(ns))
-
-#define NVME_ID_NS_MS(ns)                                                     \
-    le16_to_cpu(                                                              \
-        ((ns)->id_ns.lbaf[NVME_ID_NS_FLBAS_INDEX((ns)->id_ns.flbas)].ms)      \
-    )
-
-#define NVME_ID_NS_LBAF_DS(ns, lba_index) (ns->id_ns.lbaf[lba_index].lbads)
-#define NVME_ID_NS_LBAF_MS(ns, lba_index) (ns->id_ns.lbaf[lba_index].ms)
-
-#define NVME_MAX_NUM_NAMESPACES 256
 #define NVME_SPARE_THRESHOLD    20
 #define NVME_TEMPERATURE        0x143
 #define NVME_OP_ABORTED         0xff
-
 
 enum NvmePsdt {
     NVME_PSDT_PRP                 = 0x0,
@@ -52,7 +36,6 @@ typedef struct NvmeCmd {
     uint32_t    nsid;
     uint64_t    res2;
     uint64_t    mptr;
-    NvmeCmdDptr dptr;
     uint32_t    cdw10;
     uint32_t    cdw11;
     uint32_t    cdw12;
@@ -105,66 +88,6 @@ typedef struct NvmeRwCmd {
     uint16_t    apptag;
     uint16_t    appmask;
 } NvmeRwCmd;
-
-enum NvmeStatusCodes {
-    NVME_SUCCESS                = 0x0000,
-    NVME_INVALID_OPCODE         = 0x0001,
-    NVME_INVALID_FIELD          = 0x0002,
-    NVME_CID_CONFLICT           = 0x0003,
-    NVME_DATA_TRAS_ERROR        = 0x0004,
-    NVME_POWER_LOSS_ABORT       = 0x0005,
-    NVME_INTERNAL_DEV_ERROR     = 0x0006,
-    NVME_CMD_ABORT_REQ          = 0x0007,
-    NVME_CMD_ABORT_SQ_DEL       = 0x0008,
-    NVME_CMD_ABORT_FAILED_FUSE  = 0x0009,
-    NVME_CMD_ABORT_MISSING_FUSE = 0x000a,
-    NVME_INVALID_NSID           = 0x000b,
-    NVME_CMD_SEQ_ERROR          = 0x000c,
-    NVME_INVALID_CMD_SET        = 0x002c,
-    NVME_LBA_RANGE              = 0x0080,
-    NVME_CAP_EXCEEDED           = 0x0081,
-    NVME_NS_NOT_READY           = 0x0082,
-    NVME_NS_RESV_CONFLICT       = 0x0083,
-    NVME_INVALID_CQID           = 0x0100,
-    NVME_INVALID_QID            = 0x0101,
-    NVME_MAX_QSIZE_EXCEEDED     = 0x0102,
-    NVME_ACL_EXCEEDED           = 0x0103,
-    NVME_RESERVED               = 0x0104,
-    NVME_AER_LIMIT_EXCEEDED     = 0x0105,
-    NVME_INVALID_FW_SLOT        = 0x0106,
-    NVME_INVALID_FW_IMAGE       = 0x0107,
-    NVME_INVALID_IRQ_VECTOR     = 0x0108,
-    NVME_INVALID_LOG_ID         = 0x0109,
-    NVME_INVALID_FORMAT         = 0x010a,
-    NVME_FW_REQ_RESET           = 0x010b,
-    NVME_INVALID_QUEUE_DEL      = 0x010c,
-    NVME_FID_NOT_SAVEABLE       = 0x010d,
-    NVME_FID_NOT_NSID_SPEC      = 0x010f,
-    NVME_FW_REQ_SUSYSTEM_RESET  = 0x0110,
-    NVME_CONFLICTING_ATTRS      = 0x0180,
-    NVME_INVALID_PROT_INFO      = 0x0181,
-    NVME_WRITE_TO_RO            = 0x0182,
-    NVME_ZONE_BOUNDARY_ERROR    = 0x01b8,
-    NVME_ZONE_FULL              = 0x01b9,
-    NVME_ZONE_READ_ONLY         = 0x01ba,
-    NVME_ZONE_OFFLINE           = 0x01bb,
-    NVME_ZONE_INVALID_WRITE     = 0x01bc,
-    NVME_ZONE_TOO_MANY_ACTIVE   = 0x01bd,
-    NVME_ZONE_TOO_MANY_OPEN     = 0x01be,
-    NVME_ZONE_INVAL_TRANSITION  = 0x01bf,
-    NVME_INVALID_MEMORY_ADDRESS = 0x01C0,
-    NVME_WRITE_FAULT            = 0x0280,
-    NVME_UNRECOVERED_READ       = 0x0281,
-    NVME_E2E_GUARD_ERROR        = 0x0282,
-    NVME_E2E_APP_ERROR          = 0x0283,
-    NVME_E2E_REF_ERROR          = 0x0284,
-    NVME_CMP_FAILURE            = 0x0285,
-    NVME_ACCESS_DENIED          = 0x0286,
-    NVME_DULB                   = 0x0287,
-    NVME_MORE                   = 0x2000,
-    NVME_DNR                    = 0x4000,
-    NVME_NO_COMPLETE            = 0xffff,
-};
 
 #define NVME_NSID_BROADCAST 0xffffffff
 
@@ -231,11 +154,6 @@ typedef struct BbCtrlParams {
     int gc_thres_pcent_high;
 } BbCtrlParams;
 
-typedef struct FlashOps{
-    void    (*cmd_to_req)(uint16_t, uint64_t, int, NvmeRequest*);
-    uin64_t (*ftl_io)(FemuCtrl*, NvmeRequest*);
-    void    (*init)(FemuCtrl*);
-} FlashOps;
 typedef struct FemuCtrl {
 
     time_t      start_time;
@@ -243,58 +161,24 @@ typedef struct FemuCtrl {
     uint8_t     enable_gc_delay;
     uint8_t     enable_delay_emu;
     /********* */
+    char            *serial;
+    uint32_t        memsz;
+    uint32_t    num_namespaces;
+    uint8_t     lba_index;
     uint16_t    temperature;
     uint16_t    page_size;
     uint16_t    page_bits;
     uint32_t    reg_size;
-    uint32_t    num_namespaces;
-    uint64_t    ns_size;
     uint8_t     db_stride;
-    uint8_t     aerl;
-    uint8_t     acl;
-    uint8_t     elpe;
-    uint8_t     elp_index;
-    uint8_t     error_count;
-    uint8_t     mdts;
-    uint8_t     cqr;
-    uint8_t     max_sqes;
-    uint8_t     max_cqes;
-    uint8_t     meta;
-    uint8_t     vwc;
-    uint8_t     mc;
-    uint8_t     dpc;
-    uint8_t     dps;
-    uint8_t     nlbaf;
-    uint8_t     extended;
-    uint8_t     lba_index;
-    uint8_t     mpsmin;
-    uint8_t     mpsmax;
-    uint8_t     ms;
-    uint8_t     ms_max;
-    uint8_t     outstanding_aers;
-    uint8_t     temp_warn_issued;
-    uint8_t     num_errors;
-    uint8_t     cqes_pending;
     uint16_t    vid;
     uint16_t    did;
-    uint8_t     dlfeat;
     bool        dataplane_started;
-    bool        vector_poll_started;
-    char            *serial;
     char            *logfile;
     NvmeRequest     **aer_reqs;
     QEMUTimer       *aer_timer;
     uint8_t         aer_mask;
 
-	uint64_t		dbs_addr;
-	uint64_t		eis_addr;
-    uint64_t        dbs_addr_hva;
-    uint64_t        eis_addr_hva;
-
-    uint8_t         femu_mode;
-    uint32_t        memsz;
-
-    BbCtrlParams bb_params; //latency info
+    BbCtrlParams bb_params;
 
     struct ssd      *ssd;
     int             completed;
@@ -310,7 +194,12 @@ typedef struct FemuCtrl {
 
     /* Nand Flash Type: SLC/MLC/TLC/QLC/PLC */
     uint8_t         flash_type;
-    FlashOps        flash_ops;
+    typedef struct FlashOps{
+        void    (*cmd_to_req)(uint16_t, uint64_t, int, NvmeRequest*);
+        uin64_t (*ftl_io)(FemuCtrl*, NvmeRequest*);
+        void    (*init)(FemuCtrl*);
+    } FlashOps;
+
 } FemuCtrl;
 
 
