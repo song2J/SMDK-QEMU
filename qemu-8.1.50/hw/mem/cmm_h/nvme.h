@@ -216,11 +216,6 @@ typedef struct BbCtrlParams {
     int gc_thres_pcent_high;
 } BbCtrlParams;
 
-typedef struct FlashOps{
-    void    (*cmd_to_req)(uint16_t, uint64_t, int, NvmeRequest*);
-    uin64_t (*ftl_io)(FemuCtrl*, NvmeRequest*);
-    void    (*init)(FemuCtrl*);
-} FlashOps;
 typedef struct FemuCtrl {
 
     time_t      start_time;
@@ -261,9 +256,12 @@ typedef struct FemuCtrl {
 
     /* Nand Flash Type: SLC/MLC/TLC/QLC/PLC */
     uint8_t         flash_type;
-    FlashOps        flash_ops;
+    typedef struct FlashOps{
+        void    (*cmd_to_req)(uint16_t, uint64_t, int, NvmeRequest*);
+        uin64_t (*ftl_io)(FemuCtrl*, NvmeRequest*);
+        void    (*init)(FemuCtrl*);
+    } FlashOps;
 
-    /* cache */
 } FemuCtrl;
 
 
