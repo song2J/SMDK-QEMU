@@ -12,7 +12,6 @@
 #include "qapi/error.h"
 #include "sysemu/kvm.h"
 
-#include "backend/dram.h"
 #include "inc/rte_ring.h"
 #include "inc/pqueue.h"
 #include "nand/nand.h"
@@ -37,7 +36,6 @@ typedef struct NvmeCmd {
     uint32_t    nsid;
     uint64_t    res2;
     uint64_t    mptr;
-    NvmeCmdDptr dptr;
     uint32_t    cdw10;
     uint32_t    cdw11;
     uint32_t    cdw12;
@@ -90,66 +88,6 @@ typedef struct NvmeRwCmd {
     uint16_t    apptag;
     uint16_t    appmask;
 } NvmeRwCmd;
-
-enum NvmeStatusCodes {
-    NVME_SUCCESS                = 0x0000,
-    NVME_INVALID_OPCODE         = 0x0001,
-    NVME_INVALID_FIELD          = 0x0002,
-    NVME_CID_CONFLICT           = 0x0003,
-    NVME_DATA_TRAS_ERROR        = 0x0004,
-    NVME_POWER_LOSS_ABORT       = 0x0005,
-    NVME_INTERNAL_DEV_ERROR     = 0x0006,
-    NVME_CMD_ABORT_REQ          = 0x0007,
-    NVME_CMD_ABORT_SQ_DEL       = 0x0008,
-    NVME_CMD_ABORT_FAILED_FUSE  = 0x0009,
-    NVME_CMD_ABORT_MISSING_FUSE = 0x000a,
-    NVME_INVALID_NSID           = 0x000b,
-    NVME_CMD_SEQ_ERROR          = 0x000c,
-    NVME_INVALID_CMD_SET        = 0x002c,
-    NVME_LBA_RANGE              = 0x0080,
-    NVME_CAP_EXCEEDED           = 0x0081,
-    NVME_NS_NOT_READY           = 0x0082,
-    NVME_NS_RESV_CONFLICT       = 0x0083,
-    NVME_INVALID_CQID           = 0x0100,
-    NVME_INVALID_QID            = 0x0101,
-    NVME_MAX_QSIZE_EXCEEDED     = 0x0102,
-    NVME_ACL_EXCEEDED           = 0x0103,
-    NVME_RESERVED               = 0x0104,
-    NVME_AER_LIMIT_EXCEEDED     = 0x0105,
-    NVME_INVALID_FW_SLOT        = 0x0106,
-    NVME_INVALID_FW_IMAGE       = 0x0107,
-    NVME_INVALID_IRQ_VECTOR     = 0x0108,
-    NVME_INVALID_LOG_ID         = 0x0109,
-    NVME_INVALID_FORMAT         = 0x010a,
-    NVME_FW_REQ_RESET           = 0x010b,
-    NVME_INVALID_QUEUE_DEL      = 0x010c,
-    NVME_FID_NOT_SAVEABLE       = 0x010d,
-    NVME_FID_NOT_NSID_SPEC      = 0x010f,
-    NVME_FW_REQ_SUSYSTEM_RESET  = 0x0110,
-    NVME_CONFLICTING_ATTRS      = 0x0180,
-    NVME_INVALID_PROT_INFO      = 0x0181,
-    NVME_WRITE_TO_RO            = 0x0182,
-    NVME_ZONE_BOUNDARY_ERROR    = 0x01b8,
-    NVME_ZONE_FULL              = 0x01b9,
-    NVME_ZONE_READ_ONLY         = 0x01ba,
-    NVME_ZONE_OFFLINE           = 0x01bb,
-    NVME_ZONE_INVALID_WRITE     = 0x01bc,
-    NVME_ZONE_TOO_MANY_ACTIVE   = 0x01bd,
-    NVME_ZONE_TOO_MANY_OPEN     = 0x01be,
-    NVME_ZONE_INVAL_TRANSITION  = 0x01bf,
-    NVME_INVALID_MEMORY_ADDRESS = 0x01C0,
-    NVME_WRITE_FAULT            = 0x0280,
-    NVME_UNRECOVERED_READ       = 0x0281,
-    NVME_E2E_GUARD_ERROR        = 0x0282,
-    NVME_E2E_APP_ERROR          = 0x0283,
-    NVME_E2E_REF_ERROR          = 0x0284,
-    NVME_CMP_FAILURE            = 0x0285,
-    NVME_ACCESS_DENIED          = 0x0286,
-    NVME_DULB                   = 0x0287,
-    NVME_MORE                   = 0x2000,
-    NVME_DNR                    = 0x4000,
-    NVME_NO_COMPLETE            = 0xffff,
-};
 
 #define NVME_NSID_BROADCAST 0xffffffff
 

@@ -1475,7 +1475,7 @@ static Property ct3_props[] = {
     DEFINE_PROP_LINK("nonvolatile-dc-memdev", CXLType3Dev, dc.host_dc,
                     TYPE_MEMORY_BACKEND, HostMemoryBackend *),
     /*FemuCtrl*/
-    DEFINE_PROP_UINT16("enable_gc_delay", CXLType3Dev.fc, enable_gc_delay, 0), /* in MB */
+    DEFINE_PROP_UINT16("enable_gc_delay", CXLType3Dev, fc.enable_gc_delay, 0), /* in MB */
     DEFINE_PROP_UINT16("enable_delay_emu", CXLType3Dev.fc, enable_delay_emu, 0), /* in MB */
     DEFINE_PROP_STRING("serial", CXLType3Dev.fc, serial),
     DEFINE_PROP_UINT32("devsz_mb", CXLType3Dev.fc, memsz, 1024), /* in MB */
