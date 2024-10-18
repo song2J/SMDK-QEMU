@@ -18,24 +18,9 @@
 #include "nand/nand.h"
 #include "timing-model/timing.h"
 
-#define NVME_ID_NS_LBADS(ns)                                                  \
-    ((ns)->id_ns.lbaf[NVME_ID_NS_FLBAS_INDEX((ns)->id_ns.flbas)].lbads)
-
-#define NVME_ID_NS_LBADS_BYTES(ns) (1 << NVME_ID_NS_LBADS(ns))
-
-#define NVME_ID_NS_MS(ns)                                                     \
-    le16_to_cpu(                                                              \
-        ((ns)->id_ns.lbaf[NVME_ID_NS_FLBAS_INDEX((ns)->id_ns.flbas)].ms)      \
-    )
-
-#define NVME_ID_NS_LBAF_DS(ns, lba_index) (ns->id_ns.lbaf[lba_index].lbads)
-#define NVME_ID_NS_LBAF_MS(ns, lba_index) (ns->id_ns.lbaf[lba_index].ms)
-
-#define NVME_MAX_NUM_NAMESPACES 256
 #define NVME_SPARE_THRESHOLD    20
 #define NVME_TEMPERATURE        0x143
 #define NVME_OP_ABORTED         0xff
-
 
 enum NvmePsdt {
     NVME_PSDT_PRP                 = 0x0,
@@ -243,58 +228,24 @@ typedef struct FemuCtrl {
     uint8_t     enable_gc_delay;
     uint8_t     enable_delay_emu;
     /********* */
+    char            *serial;
+    uint32_t        memsz;
+    uint32_t    num_namespaces;
+    uint8_t     lba_index;
     uint16_t    temperature;
     uint16_t    page_size;
     uint16_t    page_bits;
     uint32_t    reg_size;
-    uint32_t    num_namespaces;
-    uint64_t    ns_size;
     uint8_t     db_stride;
-    uint8_t     aerl;
-    uint8_t     acl;
-    uint8_t     elpe;
-    uint8_t     elp_index;
-    uint8_t     error_count;
-    uint8_t     mdts;
-    uint8_t     cqr;
-    uint8_t     max_sqes;
-    uint8_t     max_cqes;
-    uint8_t     meta;
-    uint8_t     vwc;
-    uint8_t     mc;
-    uint8_t     dpc;
-    uint8_t     dps;
-    uint8_t     nlbaf;
-    uint8_t     extended;
-    uint8_t     lba_index;
-    uint8_t     mpsmin;
-    uint8_t     mpsmax;
-    uint8_t     ms;
-    uint8_t     ms_max;
-    uint8_t     outstanding_aers;
-    uint8_t     temp_warn_issued;
-    uint8_t     num_errors;
-    uint8_t     cqes_pending;
     uint16_t    vid;
     uint16_t    did;
-    uint8_t     dlfeat;
     bool        dataplane_started;
-    bool        vector_poll_started;
-    char            *serial;
     char            *logfile;
     NvmeRequest     **aer_reqs;
     QEMUTimer       *aer_timer;
     uint8_t         aer_mask;
 
-	uint64_t		dbs_addr;
-	uint64_t		eis_addr;
-    uint64_t        dbs_addr_hva;
-    uint64_t        eis_addr_hva;
-
-    uint8_t         femu_mode;
-    uint32_t        memsz;
-
-    BbCtrlParams bb_params; //latency info
+    BbCtrlParams bb_params;
 
     struct ssd      *ssd;
     int             completed;
@@ -311,6 +262,8 @@ typedef struct FemuCtrl {
     /* Nand Flash Type: SLC/MLC/TLC/QLC/PLC */
     uint8_t         flash_type;
     FlashOps        flash_ops;
+
+    /* cache */
 } FemuCtrl;
 
 

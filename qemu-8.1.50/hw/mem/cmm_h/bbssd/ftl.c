@@ -891,6 +891,7 @@ void bbssd_cmd_to_req(uint16_t opcode, uint64_t lba, int size, NvmeRequest* req)
 /* bb <=> black-box */
 static void bb_init(FemuCtrl *n)
 {
+    n->start_time = time(NULL);
     struct ssd *ssd = n->ssd = g_malloc0(sizeof(struct ssd));
     ssd->dataplane_started_ptr = &n->dataplane_started;
     femu_debug("Starting FEMU in Blackbox-SSD mode ...\n");
