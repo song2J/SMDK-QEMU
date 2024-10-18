@@ -858,71 +858,9 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
     return maxlat;
 }
 
-static void *ftl_thread(void *arg)
-{
-    FemuCtrl *n = (FemuCtrl *)arg;
-    struct ssd *ssd = n->ssd;
-    NvmeRequest *req = NULL;
-    uint64_t lat = 0;
-    int rc;
-    int i;
-
-    while (!*(ssd->dataplane_started_ptr)) {
-        usleep(100000);
-    }
-
-    /* FIXME: not safe, to handle ->to_ftl and ->to_poller gracefully */
-    ssd->to_ftl = n->to_ftl;
-    ssd->to_poller = n->to_poller;
-
-    while (1) {
-        for (i = 1; i <= n->nr_pollers; i++) {
-            if (!ssd->to_ftl[i] || !femu_ring_count(ssd->to_ftl[i]))
-                continue;
-
-            rc = femu_ring_dequeue(ssd->to_ftl[i], (void *)&req, 1);
-            if (rc != 1) {
-                printf("FEMU: FTL to_ftl dequeue failed\n");
-            }
-
-            ftl_assert(req);
-            switch (req->cmd.opcode) {
-            case NVME_CMD_WRITE:
-                lat = ssd_write(ssd, req);
-				printf("FEMU: Femu SSD_WRITE\n");
-                break;
-            case NVME_CMD_READ:
-                lat = ssd_read(ssd, req);
-				printf("FEMU: Femu SSD_READ\n");
-                break;
-            case NVME_CMD_DSM:
-                lat = 0;
-                break;
-            default:
-                //ftl_err("FTL received unkown request type, ERROR\n");
-                ;
-            }
-
-            req->reqlat = lat;
-            req->expire_time += lat;
-
-            rc = femu_ring_enqueue(ssd->to_poller[i], (void *)&req, 1);
-            if (rc != 1) {
-                ftl_err("FTL to_poller enqueue failed\n");
-            }
-
-            /* clean one line if needed (in the background) */
-            if (should_gc(ssd)) {
-                do_gc(ssd, false);
-            }
-        }
-    }
-
-    return NULL;
-}
-
 uin64_t bbssd_ftl_io(FemuCtrl* n, NvmeRequest* req){
     ftl_assert(req);
+    struct ssd *ssd = n->ssd;
     uint64_t lat;
     switch (req->cmd.opcode) {
     case NVME_CMD_WRITE:
@@ -940,10 +878,48 @@ uin64_t bbssd_ftl_io(FemuCtrl* n, NvmeRequest* req){
         //ftl_err("FTL received unkown request type, ERROR\n");
         ;
     }
+    req->reqlat = lat;
+    req->expire_time += lat;
     return lat;
 }
 void bbssd_cmd_to_req(uint16_t opcode, uint64_t lba, int size, NvmeRequest* req){
     req->cmd.opcode = opcode;
     req->slba = lba;
     req->nlb = size;
+}
+
+/* bb <=> black-box */
+static void bb_init(FemuCtrl *n)
+{
+    struct ssd *ssd = n->ssd = g_malloc0(sizeof(struct ssd));
+    ssd->dataplane_started_ptr = &n->dataplane_started;
+    femu_debug("Starting FEMU in Blackbox-SSD mode ...\n");
+    ssd_init(n);
+    if(n->enable_gc_delay){
+        ssd->sp.enable_gc_delay = true;
+        femu_log("%s,FEMU GC Delay Emulation [Enabled]!\n", n->devname);
+    }
+    else{
+        ssd->sp.enable_gc_delay = false;
+        femu_log("%s,FEMU GC Delay Emulation [Disabled]!\n", n->devname);
+    }
+    if(n->enable_delay_emu){
+        ssd->sp.pg_rd_lat = NAND_READ_LATENCY;
+        ssd->sp.pg_wr_lat = NAND_PROG_LATENCY;
+        ssd->sp.blk_er_lat = NAND_ERASE_LATENCY;
+        ssd->sp.ch_xfer_lat = 0;
+        femu_log("%s,FEMU Delay Emulation [Enabled]!\n", n->devname);
+    }else{
+        ssd->sp.pg_rd_lat = 0;
+        ssd->sp.pg_wr_lat = 0;
+        ssd->sp.blk_er_lat = 0;
+        ssd->sp.ch_xfer_lat = 0;
+        femu_log("%s,FEMU Delay Emulation [Disabled]!\n", n->devname);
+    }
+}
+
+void cmmh_register_bb_flashOps(FemuCtrl* n){
+    n->flash_ops.cmd_to_req = bbssd_cmd_to_req;
+    n->flash_ops.ftl_io=bbssd_ftl_io;
+    n->flash_ops.init=bb_init;
 }

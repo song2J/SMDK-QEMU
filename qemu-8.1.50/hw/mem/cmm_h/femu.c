@@ -5,81 +5,6 @@
 
 #define NVME_SPEC_VER (0x00010400)
 
-static void nvme_clear_ctrl(FemuCtrl *n, bool shutdown)
-{
-    int i;
-
-    /* Coperd: pause nvme poller at earliest convenience */
-    n->dataplane_started = false;
-
-    if (shutdown) {
-        femu_debug("shutting down NVMe Controller ...\n");
-    } else {
-        femu_debug("disabling NVMe Controller ...\n");
-    }
-
-    if (shutdown) {
-        femu_debug("%s,clear_guest_notifier\n", __func__);
-        nvme_clear_virq(n);
-    }
-
-    for (i = 0; i <= n->nr_io_queues; i++) {
-        if (n->sq[i] != NULL) {
-            nvme_free_sq(n->sq[i], n);
-        }
-    }
-    for (i = 0; i <= n->nr_io_queues; i++) {
-        if (n->cq[i] != NULL) {
-            nvme_free_cq(n->cq[i], n);
-        }
-    }
-
-    n->bar.cc = 0;
-    n->features.temp_thresh = 0x14d;
-    n->temp_warn_issued = 0;
-    n->dbs_addr = 0;
-    n->dbs_addr_hva = 0;
-    n->eis_addr = 0;
-    n->eis_addr_hva = 0;
-}
-
-static int nvme_start_ctrl(FemuCtrl *n)
-{
-    uint32_t page_bits = NVME_CC_MPS(n->bar.cc) + 12;
-    uint32_t page_size = 1 << page_bits;
-
-    if (n->cq[0] || n->sq[0] || !n->bar.asq || !n->bar.acq ||
-        n->bar.asq & (page_size - 1) || n->bar.acq & (page_size - 1) ||
-        NVME_CC_MPS(n->bar.cc) < NVME_CAP_MPSMIN(n->bar.cap) ||
-        NVME_CC_MPS(n->bar.cc) > NVME_CAP_MPSMAX(n->bar.cap) ||
-        NVME_CC_IOCQES(n->bar.cc) < NVME_CTRL_CQES_MIN(n->id_ctrl.cqes) ||
-        NVME_CC_IOCQES(n->bar.cc) > NVME_CTRL_CQES_MAX(n->id_ctrl.cqes) ||
-        NVME_CC_IOSQES(n->bar.cc) < NVME_CTRL_SQES_MIN(n->id_ctrl.sqes) ||
-        NVME_CC_IOSQES(n->bar.cc) > NVME_CTRL_SQES_MAX(n->id_ctrl.sqes) ||
-        !NVME_AQA_ASQS(n->bar.aqa) || NVME_AQA_ASQS(n->bar.aqa) > 4095 ||
-        !NVME_AQA_ACQS(n->bar.aqa) || NVME_AQA_ACQS(n->bar.aqa) > 4095) {
-        return -1;
-    }
-
-    n->page_bits = page_bits;
-    n->page_size = 1 << n->page_bits;
-    n->max_prp_ents = n->page_size / sizeof(uint64_t);
-    n->cqe_size = 1 << NVME_CC_IOCQES(n->bar.cc);
-    n->sqe_size = 1 << NVME_CC_IOSQES(n->bar.cc);
-
-    nvme_init_cq(&n->admin_cq, n, n->bar.acq, 0, 0, NVME_AQA_ACQS(n->bar.aqa) +
-                 1, 1, 1);
-    nvme_init_sq(&n->admin_sq, n, n->bar.asq, 0, 0, NVME_AQA_ASQS(n->bar.aqa) +
-                 1, NVME_Q_PRIO_HIGH, 1);
-
-    /* Currently only used by FEMU ZNS extension */
-    if (n->ext_ops.start_ctrl) {
-        n->ext_ops.start_ctrl(n);
-    }
-
-    return 0;
-}
-
 static void nvme_write_bar(FemuCtrl *n, hwaddr offset, uint64_t data, unsigned size)
 {
     switch (offset) {
@@ -478,58 +403,6 @@ static void nvme_init_cmb(FemuCtrl *n)
                      PCI_BASE_ADDRESS_MEM_TYPE_64, &n->ctrl_mem);
 }
 
-static void nvme_init_pci(FemuCtrl *n)
-{
-    uint8_t *pci_conf = n->parent_obj.config;
-
-    pci_conf[PCI_INTERRUPT_PIN] = 1;
-    /* Coperd: QEMU-OCSSD(0x1d1d,0x1f1f), QEMU-NVMe(0x8086,0x5845) */
-    pci_config_set_prog_interface(pci_conf, 0x2);
-    pci_config_set_vendor_id(pci_conf, n->vid);
-    pci_config_set_device_id(pci_conf, n->did);
-    pci_config_set_class(pci_conf, PCI_CLASS_STORAGE_EXPRESS);
-    pcie_endpoint_cap_init(&n->parent_obj, 0x80);
-
-    memory_region_init_io(&n->iomem, OBJECT(n), &nvme_mmio_ops, n, "nvme",
-                          n->reg_size);
-    pci_register_bar(&n->parent_obj, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
-                     PCI_BASE_ADDRESS_MEM_TYPE_64, &n->iomem);
-    if (msix_init_exclusive_bar(&n->parent_obj, n->nr_io_queues + 1, 4, NULL)) {
-        return;
-    }
-    msi_init(&n->parent_obj, 0x50, 32, true, false, NULL);
-
-    if (n->cmbsz) {
-        nvme_init_cmb(n);
-    }
-}
-
-static int nvme_register_extensions(FemuCtrl *n)
-{
-    if (OCSSD(n)) {
-        switch (n->lver) {
-        case OCSSD12:
-            nvme_register_ocssd12(n);
-            break;
-        case OCSSD20:
-            nvme_register_ocssd20(n);
-            break;
-        default:
-            break;
-        }
-    } else if (NOSSD(n)) {
-        nvme_register_nossd(n);
-    } else if (BBSSD(n)) {
-        nvme_register_bbssd(n);
-    } else if (ZNSSD(n)) {
-        nvme_register_znssd(n);
-    } else {
-        /* TODO: For future extensions */
-    }
-
-    return 0;
-}
-
 static void femu_realize(PCIDevice *pci_dev, Error **errp)
 {
     FemuCtrl *n = FEMU(pci_dev);
@@ -543,7 +416,6 @@ static void femu_realize(PCIDevice *pci_dev, Error **errp)
 
     bs_size = ((int64_t)n->memsz) * 1024 * 1024;
 
-    init_dram_backend(&n->mbe, bs_size);
     n->mbe->femu_mode = n->femu_mode;
 
     n->completed = 0;
