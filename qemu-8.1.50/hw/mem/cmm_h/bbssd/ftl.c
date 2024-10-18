@@ -882,8 +882,12 @@ uin64_t bbssd_ftl_io(FemuCtrl* n, NvmeRequest* req){
     req->expire_time += lat;
     return lat;
 }
-void bbssd_cmd_to_req(uint16_t opcode, uint64_t lba, int size, NvmeRequest* req){
-    req->cmd.opcode = opcode;
+void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, NvmeRequest* req){
+    req->is_write = is_write;
+    if(is_write)
+        req->opcode = NVME_CMD_WRITE;
+    else
+        req->opcode = NVME_CMD_READ;
     req->slba = lba;
     req->nlb = size;
 }
