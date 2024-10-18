@@ -63,48 +63,40 @@ bool isCacheHit(CMMHCache* cc, uint64_t dpa, bool if_modify)
     return false;
 }
 
-bool cacheRead(CMMHCache *cc, uint64_t dpa)
+bool cache_read(CMMHCache *cc, uint64_t dpa)
 {
     if(isCacheHit(cc, dpa, false)) {
-        /* count cache hit */
+        /* count read cache hit */
     } else {
-        /* count cache miss*/
+        /* count read cache miss*/
     }
 }
 
-bool cacheWrite(CMMHCache *cc, uint64_t dpa)
+bool cache_write(CMMHCache *cc, uint64_t dpa)
 {
     if(isCacheHit(cc, dpa, true)) {
-        /* count cache hit */
+        /* count write cache hit */
     } else {
-        /* count cache miss*/
+        /* count write cache miss*/
     }
     
 }
 
-static bool cacheInit(CMMHCache **ccp, FemuCtrl* fc)
+static bool cache_init(CMMHCache *cache)
 {
-    *ccp = g_malloc0(sizeof(CMMHCache));
+    int index_bits  = cache->index_bits;
+    int num_tag     = cache->num_tag;
 
-    int page_bits  = fc->page_bits; // NOT SURE IF IT CAN BE USED
-    int index_bits = fc->cache_index_bits;
-    int num_tag     = fc->cache_num_tag;
-
-    (*ccp)->page_bits = page_bits;
-    (*ccp)->index_bits = index_bits;
-    (*ccp)->tag_bits = sizeof(void*) - page_bits - index_bits;
-
-    (*ccp)->num_tag = num_tag;
-
-    (*ccp)->table = g_malloc0(sizeof(CacheNode*) * index_bits);
+    cache->table = g_malloc0(sizeof(CacheNode*) * index_bits);
     for(int i = 0; i < (1 << index_bits); i++) {
         for(int j = 0; j < num_tag; j++) {
             CacheNode* curr = g_malloc0(sizeof(CacheNode));
-            curr->next = (*ccp)->table[i];
-            (*ccp)->table[i] = curr;
+            cache->table[i]->prev = curr;
+            curr->next = cache->table[i];
+            cache->table[i] = curr;
         }
     }
 
-    (*ccp)->read = cacheRead;
-    (*ccp)->write = cacheWrite;
+    cache->read = cache_read;
+    cache->write = cache_write;
 }

@@ -1,7 +1,8 @@
 #ifndef CACHE_H
 #define CACHE_H
 
-#include "../nvme.h"
+#include <stdint.h>
+#include <stdbool.h>
 
 typedef struct CacheNode {
     uint64_t tag;
@@ -25,6 +26,6 @@ typedef struct CMMHCache {
     
 } CMMHCache;
 
-static bool cacheInit(CMMHCache **ccp, FemuCtrl* fc);
+extern bool cache_init(CMMHCache *cache);
 
 #endif
