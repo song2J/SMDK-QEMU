@@ -889,38 +889,36 @@ static uint64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_w
         //ftl_err("FTL received unkown request type, ERROR\n");
         ;
     }
-    req.reqlat = lat;
-    req.expire_time += lat;
     return lat;
 }
 /* bb <=> black-box */
-void bb_init(CMMHFlashCtrl *n)
+static void bb_init(CMMHFlashCtrl *n)
 {
     n->start_time = time(NULL);
     struct ssd *ssd = n->ssd = g_malloc0(sizeof(struct ssd));
     ssd->dataplane_started_ptr = &n->dataplane_started;
-    cmmh_debug("Starting CMMH Flash in Blackbox-SSD mode ...\n");
+    cmmh_ftl_debug("Starting CMMH Flash in Blackbox-SSD mode ...\n");
     ssd_init(n);
     if(n->enable_gc_delay){
         ssd->sp.enable_gc_delay = true;
-        cmmh_log("%s,CMMH GC Delay Emulation [Enabled]!\n", n->devname);
+        cmmh_ftl_log("%s,CMMH GC Delay Emulation [Enabled]!\n", n->devname);
     }
     else{
         ssd->sp.enable_gc_delay = false;
-        cmmh_log("%s,CMMH GC Delay Emulation [Disabled]!\n", n->devname);
+        cmmh_ftl_log("%s,CMMH GC Delay Emulation [Disabled]!\n", n->devname);
     }
     if(n->enable_delay_emu){
         ssd->sp.pg_rd_lat = NAND_READ_LATENCY;
         ssd->sp.pg_wr_lat = NAND_PROG_LATENCY;
         ssd->sp.blk_er_lat = NAND_ERASE_LATENCY;
         ssd->sp.ch_xfer_lat = 0;
-        cmmh_log("%s,CMMH Delay Emulation [Enabled]!\n", n->devname);
+        cmmh_ftl_log("%s,CMMH Delay Emulation [Enabled]!\n", n->devname);
     }else{
         ssd->sp.pg_rd_lat = 0;
         ssd->sp.pg_wr_lat = 0;
         ssd->sp.blk_er_lat = 0;
         ssd->sp.ch_xfer_lat = 0;
-        cmmh_log("%s,CMMH Delay Emulation [Disabled]!\n", n->devname);
+        cmmh_ftl_log("%s,CMMH Delay Emulation [Disabled]!\n", n->devname);
     }
 }
 

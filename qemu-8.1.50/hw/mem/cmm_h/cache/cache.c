@@ -1,4 +1,7 @@
 #include "cache.h"
+#include "qemu/osdep.h"
+#include "qemu/uuid.h"
+#include "qemu/units.h"
 
 static inline uint64_t getCacheOffset(CMMHCache* cc, uint64_t dpa)
 {
