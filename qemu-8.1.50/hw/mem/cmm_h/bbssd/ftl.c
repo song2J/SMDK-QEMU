@@ -1,6 +1,6 @@
 #include "ftl.h"
 
-//#define FEMU_DEBUG_FTL
+//#define CMMH_FLASH_DEBUG_FTL
 
 static void *ftl_thread(void *arg);
 
@@ -234,7 +234,7 @@ static void check_params(struct ssdparams *spp)
     //ftl_assert(is_power_of_2(spp->nchs));
 }
 
-static void ssd_init_params(struct ssdparams *spp, FemuCtrl *n)
+static void ssd_init_params(struct ssdparams *spp, CMMHFlashCtrl *n)
 {
     spp->secsz = n->bb_params.secsz; // 512
     spp->secs_per_pg = n->bb_params.secs_per_pg; // 8
@@ -360,7 +360,7 @@ static void ssd_init_rmap(struct ssd *ssd)
     }
 }
 
-void ssd_init(FemuCtrl *n)
+void ssd_init(CMMHFlashCtrl *n)
 {
     struct ssd *ssd = n->ssd;
     struct ssdparams *spp = &ssd->sp;
@@ -386,9 +386,6 @@ void ssd_init(FemuCtrl *n)
 
     /* initialize write pointer, this is how we allocate new pages for writes */
     ssd_init_write_pointer(ssd);
-
-    qemu_thread_create(&ssd->ftl_thread, "FEMU-FTL-Thread", ftl_thread, n,
-                       QEMU_THREAD_JOINABLE);
 }
 
 static inline bool valid_ppa(struct ssd *ssd, struct ppa *ppa)
@@ -767,7 +764,7 @@ static int do_gc(struct ssd *ssd, bool force)
     return 0;
 }
 
-static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
+static uint64_t ssd_read(struct ssd *ssd, CMMHFlashRequest *req)
 {
     struct ssdparams *spp = &ssd->sp;
     uint64_t lba = req->slba;
@@ -803,7 +800,7 @@ static uint64_t ssd_read(struct ssd *ssd, NvmeRequest *req)
     return maxlat;
 }
 
-static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
+static uint64_t ssd_write(struct ssd *ssd, CMMHFlashRequest *req)
 {
     uint64_t lba = req->slba;
     struct ssdparams *spp = &ssd->sp;
@@ -863,20 +860,31 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
     Fix argument to (FemuCtrl*, uint64_t lba, int size, bool is_write)
     So that hide cmd_to_req
 */
-uin64_t bbssd_ftl_io(FemuCtrl* n, NvmeRequest* req){
-    ftl_assert(req);
+void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashRequest* req){
+    req->is_write = is_write;
+    if(is_write)
+        req->opcode = CMMH_FLASH_CMD_WRITE;
+    else
+        req->opcode = CMMH_FLASH_CMD_READ;
+    req->slba = lba;
+    req->nlb = size;
+}
+
+uin64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write){
     struct ssd *ssd = n->ssd;
+    CMMHFlashRequest req;
+    bbssd_cmd_to_req(lba, size, is_write, &req);
     uint64_t lat;
-    switch (req->cmd.opcode) {
-    case NVME_CMD_WRITE:
+    switch (req.cmd.opcode) {
+    case CMMH_FLASH_CMD_WRITE:
         lat = ssd_write(ssd, req);
-		printf("FEMU: Femu SSD_WRITE\n");
+		printf("CMMH: cmm_flash SSD_WRITE\n");
         break;
-    case NVME_CMD_READ:
+    case CMMH_FLASH_CMD_READ:
         lat = ssd_read(ssd, req);
-       	printf("FEMU: Femu SSD_READ\n");
+       	printf("CMMH: cmmh_flash SSD_READ\n");
         break;
-    case NVME_CMD_DSM:
+    case CMMH_FLASH_CMD_DSM:
         lat = 0;
         break;
     default:
@@ -887,44 +895,34 @@ uin64_t bbssd_ftl_io(FemuCtrl* n, NvmeRequest* req){
     req->expire_time += lat;
     return lat;
 }
-void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, NvmeRequest* req){
-    req->is_write = is_write;
-    if(is_write)
-        req->opcode = NVME_CMD_WRITE;
-    else
-        req->opcode = NVME_CMD_READ;
-    req->slba = lba;
-    req->nlb = size;
-}
-
 /* bb <=> black-box */
-static void bb_init(FemuCtrl *n)
+static void bb_init(CMMHFlashCtrl *n)
 {
     n->start_time = time(NULL);
     struct ssd *ssd = n->ssd = g_malloc0(sizeof(struct ssd));
     ssd->dataplane_started_ptr = &n->dataplane_started;
-    femu_debug("Starting FEMU in Blackbox-SSD mode ...\n");
+    cmmh_debug("Starting CMMH Flash in Blackbox-SSD mode ...\n");
     ssd_init(n);
     if(n->enable_gc_delay){
         ssd->sp.enable_gc_delay = true;
-        femu_log("%s,FEMU GC Delay Emulation [Enabled]!\n", n->devname);
+        cmmh_log("%s,CMMH GC Delay Emulation [Enabled]!\n", n->devname);
     }
     else{
         ssd->sp.enable_gc_delay = false;
-        femu_log("%s,FEMU GC Delay Emulation [Disabled]!\n", n->devname);
+        cmmh_log("%s,CMMH GC Delay Emulation [Disabled]!\n", n->devname);
     }
     if(n->enable_delay_emu){
         ssd->sp.pg_rd_lat = NAND_READ_LATENCY;
         ssd->sp.pg_wr_lat = NAND_PROG_LATENCY;
         ssd->sp.blk_er_lat = NAND_ERASE_LATENCY;
         ssd->sp.ch_xfer_lat = 0;
-        femu_log("%s,FEMU Delay Emulation [Enabled]!\n", n->devname);
+        cmmh_log("%s,CMMH Delay Emulation [Enabled]!\n", n->devname);
     }else{
         ssd->sp.pg_rd_lat = 0;
         ssd->sp.pg_wr_lat = 0;
         ssd->sp.blk_er_lat = 0;
         ssd->sp.ch_xfer_lat = 0;
-        femu_log("%s,FEMU Delay Emulation [Disabled]!\n", n->devname);
+        cmmh_log("%s,CMMH Delay Emulation [Disabled]!\n", n->devname);
     }
 }
 

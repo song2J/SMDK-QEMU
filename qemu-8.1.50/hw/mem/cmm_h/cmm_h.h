@@ -1,5 +1,5 @@
-#ifndef __FEMU_NVME_H
-#define __FEMU_NVME_H
+#ifndef __CMMH_H
+#define __CMMH_H
 
 #include "qemu/osdep.h"
 #include "qemu/uuid.h"
@@ -14,24 +14,23 @@
 
 #include "inc/rte_ring.h"
 #include "inc/pqueue.h"
-#include "nand/nand.h"
 #include "timing-model/timing.h"
 
-#define NVME_SPARE_THRESHOLD    20
-#define NVME_TEMPERATURE        0x143
-#define NVME_OP_ABORTED         0xff
-#define NVME_CMD_FLAGS_FUSE(flags) (flags & 0x3)
-#define NVME_CMD_FLAGS_PSDT(flags) ((flags >> 6) & 0x3)
+#define CMMH_SPARE_THRESHOLD    20
+#define CMMH_TEMPERATURE        0x143
+#define CMMH_OP_ABORTED         0xff
+#define CMMH_CMD_FLAGS_FUSE(flags) (flags & 0x3)
+#define CMMH_CMD_FLAGS_PSDT(flags) ((flags >> 6) & 0x3)
 
 
-enum NvmeIoCommands {
-    NVME_CMD_FLUSH              = 0x00,
-    NVME_CMD_WRITE              = 0x01,
-    NVME_CMD_READ               = 0x02,
-    NVME_CMD_DSM                = 0x09,
+enum CMMHFlashIoCommands {
+    CMMH_FLASH_CMD_FLUSH              = 0x00,
+    CMMH_FLASH_CMD_WRITE              = 0x01,
+    CMMH_FLASH_CMD_READ               = 0x02,
+    CMMH_FLASH_CMD_DSM                = 0x09,
 };
 
-typedef struct NvmeRequest {
+typedef struct CMMHFlashRequest {
     uint16_t                status;
     uint64_t                slba;
     uint16_t                is_write;
@@ -39,14 +38,11 @@ typedef struct NvmeRequest {
     uint8_t                 opcode;
     /* position in the priority queue for delay emulation */
     size_t                  pos;
-} NvmeRequest;
-
-#define TYPE_NVME "femu"
-#define FEMU(obj) OBJECT_CHECK(FemuCtrl, (obj), TYPE_NVME)
+} CMMHFlashRequest;
 
 /* do NOT go beyound 256 (uint8_t) */
-#define FEMU_MAX_NUM_CHNLS (32)
-#define FEMU_MAX_NUM_CHIPS (128)
+#define CMMH_FLASH_MAX_NUM_CHNLS (32)
+#define CMMH_FLASH_MAX_NUM_CHIPS (128)
 
 typedef struct BbCtrlParams {
     int secsz;
@@ -66,7 +62,7 @@ typedef struct BbCtrlParams {
     int gc_thres_pcent_high;
 } BbCtrlParams;
 
-typedef struct FemuCtrl {
+typedef struct CMMHFlashCtrl {
 
     time_t      start_time;
     /* NEW features*/
@@ -99,32 +95,32 @@ typedef struct FemuCtrl {
     /* Nand Flash Type: SLC/MLC/TLC/QLC/PLC */
     uint8_t         flash_type;
     typedef struct flash_ops{
-        void    (*cmd_to_req)(uint64_t, int, bool, NvmeRequest*);
-        uin64_t (*ftl_io)(FemuCtrl*, NvmeRequest*);
-        void    (*init)(FemuCtrl*);
+        uin64_t (*ftl_io)(CMMHFlashCtrl*, uint64_t, int, bool);
+        void    (*init)(CMMHFlashCtrl*);
     } flash_ops;
 
-} FemuCtrl;
+
+} CMMHFlashCtrl;
 
 int cmmh_register_bb_flash_ops(FemuCtrl *n);
 
 #define MN_MAX_LEN (64)
 #define ID_MAX_LEN (4)
 
-//#define FEMU_DEBUG_NVME
-#ifdef FEMU_DEBUG_NVME
-#define femu_debug(fmt, ...) \
-    do { printf("[FEMU] Dbg: " fmt, ## __VA_ARGS__); } while (0)
+//#define CMMH_DEBUG_NVME
+#ifdef CMMH_DEBUG_NVME
+#define cmmh_debug(fmt, ...) \
+    do { printf("[CMMH] Dbg: " fmt, ## __VA_ARGS__); } while (0)
 #else
-#define femu_debug(fmt, ...) \
+#define cmmh_debug(fmt, ...) \
     do { } while (0)
 #endif
 
-#define femu_err(fmt, ...) \
-    do { fprintf(stderr, "[FEMU] Err: " fmt, ## __VA_ARGS__); } while (0)
+#define cmmh_err(fmt, ...) \
+    do { fprintf(stderr, "[CMMH] Err: " fmt, ## __VA_ARGS__); } while (0)
 
-#define femu_log(fmt, ...) \
-    do { printf("[FEMU] Log: " fmt, ## __VA_ARGS__); } while (0)
+#define cmmh_log(fmt, ...) \
+    do { printf("[CMMH] Log: " fmt, ## __VA_ARGS__); } while (0)
 
 
-#endif /* __FEMU_NVME_H */
+#endif /* __CMMH_NVME_H */

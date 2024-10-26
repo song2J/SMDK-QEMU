@@ -1,7 +1,7 @@
-#ifndef __FEMU_FTL_H
-#define __FEMU_FTL_H
+#ifndef __CMMH_FTL_H
+#define __CMMH_FTL_H
 
-#include "../nvme.h"
+#include "../cmm_h.h"
 
 #define INVALID_PPA     (~(0ULL))
 #define INVALID_LPN     (~(0ULL))
@@ -33,15 +33,15 @@ enum {
 };
 
 enum {
-    FEMU_ENABLE_GC_DELAY = 1,
-    FEMU_DISABLE_GC_DELAY = 2,
+    FLASH_ENABLE_GC_DELAY = 1,
+    FLASH_DISABLE_GC_DELAY = 2,
 
-    FEMU_ENABLE_DELAY_EMU = 3,
-    FEMU_DISABLE_DELAY_EMU = 4,
+    FLASH_ENABLE_DELAY_EMU = 3,
+    FLASH_DISABLE_DELAY_EMU = 4,
 
-    FEMU_RESET_ACCT = 5,
-    FEMU_ENABLE_LOG = 6,
-    FEMU_DISABLE_LOG = 7,
+    FLASH_RESET_ACCT = 5,
+    FLASH_ENABLE_LOG = 6,
+    FLASH_DISABLE_LOG = 7,
 };
 
 
@@ -210,28 +210,28 @@ struct ssd {
     QemuThread ftl_thread;
 };
 
-void ssd_init(FemuCtrl *n);
+void ssd_init(FlashCtrl *n);
 
-#ifdef FEMU_DEBUG_FTL
-#define ftl_debug(fmt, ...) \
-    do { printf("[FEMU] FTL-Dbg: " fmt, ## __VA_ARGS__); } while (0)
+#ifdef CMMH_DEBUG_FTL
+#define cmmh_debug(fmt, ...) \
+    do { printf("[CMMH] FTL-Dbg: " fmt, ## __VA_ARGS__); } while (0)
 #else
-#define ftl_debug(fmt, ...) \
+#define cmmh_debug(fmt, ...) \
     do { } while (0)
 #endif
 
-#define ftl_err(fmt, ...) \
-    do { fprintf(stderr, "[FEMU] FTL-Err: " fmt, ## __VA_ARGS__); } while (0)
+#define cmmh_err(fmt, ...) \
+    do { fprintf(stderr, "[CMMH] FTL-Err: " fmt, ## __VA_ARGS__); } while (0)
 
-#define ftl_log(fmt, ...) \
-    do { printf("[FEMU] FTL-Log: " fmt, ## __VA_ARGS__); } while (0)
+#define cmmh_log(fmt, ...) \
+    do { printf("[CMMH] FTL-Log: " fmt, ## __VA_ARGS__); } while (0)
 
 
-/* FEMU assert() */
-#ifdef FEMU_DEBUG_FTL
-#define ftl_assert(expression) assert(expression)
+/* CMMH assert() */
+#ifdef CMMH_DEBUG_FTL
+#define cmmh_assert(expression) assert(expression)
 #else
-#define ftl_assert(expression)
+#define cmmh_assert(expression)
 #endif
 
 #endif
