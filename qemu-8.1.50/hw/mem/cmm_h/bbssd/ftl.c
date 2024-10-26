@@ -858,6 +858,11 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
     return maxlat;
 }
 
+/*
+    TODO:
+    Fix argument to (FemuCtrl*, uint64_t lba, int size, bool is_write)
+    So that hide cmd_to_req
+*/
 uin64_t bbssd_ftl_io(FemuCtrl* n, NvmeRequest* req){
     ftl_assert(req);
     struct ssd *ssd = n->ssd;
@@ -923,7 +928,7 @@ static void bb_init(FemuCtrl *n)
     }
 }
 
-void cmmh_register_bb_flashOps(FemuCtrl* n){
+void cmmh_register_bb_flash_ops(FemuCtrl* n){
     n->flash_ops.cmd_to_req = bbssd_cmd_to_req;
     n->flash_ops.ftl_io=bbssd_ftl_io;
     n->flash_ops.init=bb_init;
