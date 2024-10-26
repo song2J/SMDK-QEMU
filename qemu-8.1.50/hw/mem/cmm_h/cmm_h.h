@@ -94,7 +94,7 @@ typedef struct CMMHFlashCtrl {
 
     /* Nand Flash Type: SLC/MLC/TLC/QLC/PLC */
     uint8_t         flash_type;
-    typedef struct flash_ops{
+    struct {
         uin64_t (*ftl_io)(CMMHFlashCtrl*, uint64_t, int, bool);
         void    (*init)(CMMHFlashCtrl*);
     } flash_ops;
