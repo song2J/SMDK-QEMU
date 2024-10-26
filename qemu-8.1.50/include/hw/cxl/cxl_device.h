@@ -16,8 +16,9 @@
 #include "hw/cxl/cxl_events.h"
 
 #include "hw/cxl/cxl_cpmu.h"
-#include "hw/mem/cmm_h/nvme.h"
-#include "hw/mem/cmm_h/cache.h"
+#include "hw/cxl/cmm_h.h"
+#include "hw/mem/cmm_h/cache/cache.h"
+#include "hw/mem/cmm_h/cmm_h.h"
 /*
  * The following is how a CXL device's Memory Device registers are laid out.
  * The only requirement from the spec is that the capabilities array and the
