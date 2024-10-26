@@ -132,7 +132,7 @@ void qmp_marshal_cxl_inject_memory_module_event(QDict *args, QObject **ret, Erro
         trace_qmp_enter_cxl_inject_memory_module_event(req_json->str);
     }
 
-    qmp_cxl_inject_memory_module_event(arg.path, arg.log, arg.flags, arg.type, arg.health_status, arg.media_status, arg.additional_status, arg.life_used, arg.temperature, arg.dirty_shutdown_count, arg.corrected_volatile_error_count, arg.corrected_persistent_error_count, &err);
+    qmp_cxl_inject_memory_module_event(arg.path, arg.log, arg.flags, arg.type, arg.health_status, arg.media_status, arg.additional_status, arg.life_used, arg.temperature, arg.dirty_shutdown_count, arg.corrected_volatile_error_count, arg.corrected_persistent_error_count, arg.corrected_cmmh_error_count, &err);
     if (err) {
         trace_qmp_exit_cxl_inject_memory_module_event(error_get_pretty(err), false);
         error_propagate(errp, err);

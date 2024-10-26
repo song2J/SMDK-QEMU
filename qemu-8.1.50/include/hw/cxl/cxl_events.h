@@ -163,6 +163,7 @@ typedef struct CXLEventMemoryModule {
     uint32_t dirty_shutdown_count;
     uint32_t corrected_volatile_error_count;
     uint32_t corrected_persistent_error_count;
+    uint32_t corrected_cmmh_error_count;
     uint8_t reserved[0x3d];
 } QEMU_PACKED CXLEventMemoryModule;
 

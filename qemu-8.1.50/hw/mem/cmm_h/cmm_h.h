@@ -103,7 +103,7 @@ typedef struct CMMHFlashCtrl {
 
 } CMMHFlashCtrl;
 
-int cmmh_register_bb_flash_ops(FemuCtrl *n);
+extern void cmmh_register_bb_flash_ops(CMMHFlashCtrl* n);
 
 #define MN_MAX_LEN (64)
 #define ID_MAX_LEN (4)

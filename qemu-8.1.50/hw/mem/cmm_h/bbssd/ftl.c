@@ -143,7 +143,7 @@ static struct line *get_next_free_line(struct ssd *ssd)
 
     curline = QTAILQ_FIRST(&lm->free_line_list);
     if (!curline) {
-        ftl_err("No free lines left in [%s] !!!!\n", ssd->ssdname);
+        cmmh_ftl_err("No free lines left in [%s] !!!!\n", ssd->ssdname);
         return NULL;
     }
 
@@ -730,7 +730,7 @@ static int do_gc(struct ssd *ssd, bool force)
     }
 
     ppa.g.blk = victim_line->id;
-    ftl_debug("GC-ing line:%d,ipc=%d,victim=%d,full=%d,free=%d\n", ppa.g.blk,
+    cmmh_ftl_debug("GC-ing line:%d,ipc=%d,victim=%d,full=%d,free=%d\n", ppa.g.blk,
               victim_line->ipc, ssd->lm.victim_line_cnt, ssd->lm.full_line_cnt,
               ssd->lm.free_line_cnt);
 
