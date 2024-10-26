@@ -505,7 +505,7 @@ struct CXLType3Dev {
     } dc;
 
     struct __cmm_h{
-        FemuCtrl fc;
+        CMMHFlashCtrl fc;
         CMMHCache cache;
     } cmm_h;
 };
