@@ -98,15 +98,15 @@ typedef struct FemuCtrl {
 
     /* Nand Flash Type: SLC/MLC/TLC/QLC/PLC */
     uint8_t         flash_type;
-    typedef struct FlashOps{
+    typedef struct flash_ops{
         void    (*cmd_to_req)(uint64_t, int, bool, NvmeRequest*);
         uin64_t (*ftl_io)(FemuCtrl*, NvmeRequest*);
         void    (*init)(FemuCtrl*);
-    } FlashOps;
+    } flash_ops;
 
 } FemuCtrl;
 
-int cmmh_register_bb_flashOps(FemuCtrl *n);
+int cmmh_register_bb_flash_ops(FemuCtrl *n);
 
 #define MN_MAX_LEN (64)
 #define ID_MAX_LEN (4)

@@ -79,7 +79,7 @@ CacheAccessResult cache_write(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
     return accessCache(cc, dpa, true, victim);
 }
 
-static void cache_init(CMMHCache *cache)
+static void cmmh_cache_init(CMMHCache *cache)
 {
     int index_bits  = cache->index_bits;
     int num_tag     = cache->num_tag;

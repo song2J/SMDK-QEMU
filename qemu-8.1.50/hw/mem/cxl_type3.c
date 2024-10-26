@@ -799,32 +799,48 @@ static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
 
 static void cmmh_ctrl_init(CXLType3Dev *ct3d)
 {
-    cmmh_register_bb_flashOps(ct3d->fc);
     //flash init
-    ct3d->fc.flash_ops.init(ct3d->fc);
+    cmmh_register_bb_flash_ops(&(ct3d->cmm_h.fc));
+    ct3d->cmm_h.fc.flash_ops.init(&(ct3d->cmm_h.fc));
     //cache init
+    cmmh_cache_init(&(ct3d->cmm_h.cache));
 }
 
+/* 
+    Implement Cache file 
+    Accumulate latency info / cache hit rate
+    if hit: updatr LRU then return 0
+    if miss:
+        select victim
+        flash write if dirty 
+        flash read
+        init cache
+        write cache
+        update LRU
+        return latency
+*/
 uint64_t cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
                             uint64_t data, unsigned size)
 {
-    /* 
-        TODO:
-        Implement Cache file 
-        Accumulate latency info / cache hit rate
+    CacheAccessResult res;
+    uint64_t lat = 0;
+    FemuCtrl* fc = &(ct3d->cmm_h.fc);
+    CMMHCache* cache = &(ct3d->cmm_h.cache);
+    uint64_t victim;
+
+    while(size) {
+        if((res = cache->read(cache, dpa_offset, &victim)) == HIT)
+            continue;
         
-        if hit: 
-                updatr LRU
-                return 0
-        if miss:
-                select victim
-                flash write if dirty 
-                flash read
-                init cache
-                write cache
-                update LRU
-                return latency
-    */
+        if(res == MISS_DIRTY)
+            lat += fc->flash_ops.ftl_io(fc, (victim / fc->page_size * fc->bb_params.secs_per_pg), 
+                                                fc->page_size / fc->bb_params.secsz, true);
+
+        lat += fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
+                                                fc->page_size / fc->bb_params.secsz, false);
+        size -= sizeof(uint64_t);
+    }
+    return lat;
 }
 uint64_t cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
                             uint64_t data, unsigned size)
@@ -847,6 +863,25 @@ uint64_t cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, M
                 dirty = 1
                 return latency
     */
+    CacheAccessResult res;
+    uint64_t lat = 0;
+    FemuCtrl* fc = &(ct3d->cmm_h.fc);
+    CMMHCache* cache = &(ct3d->cmm_h.cache);
+    uint64_t victim;
+
+    while(size) {
+        if((res = cache->write(cache, dpa_offset, &victim)) == HIT)
+            continue;
+        
+        if(res == MISS_DIRTY)
+            lat += fc->flash_ops.ftl_io(fc, (victim / fc->page_size * fc->bb_params.secs_per_pg), 
+                                                fc->page_size / fc->bb_params.secsz, true);
+
+        lat += fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
+                                                fc->page_size / fc->bb_params.secsz, false);
+        size -= sizeof(uint64_t);
+    }
+    return lat;
 }
 
 /*
@@ -986,9 +1021,9 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         memory_region_set_enabled(pmr, true);
         host_memory_backend_set_mapped(ct3d->hostcmmh, true);
         if (ds->id) {
-            p_name = g_strdup_printf("cxl-type3-dpa-cmmh-space:%s", ds->id);
+            p_name = g_strdup_printf("cxl-type3-dpa-cmm_h-space:%s", ds->id);
         } else {
-            p_name = g_strdup("cxl-type3-dpa-cmmh-space");
+            p_name = g_strdup("cxl-type3-dpa-cmm_h-space");
         }
         address_space_init(&ct3d->hostcmmh_as, pmr, p_name);
         ct3d->cxl_dstate.cmmh_size = memory_region_size(pmr);
@@ -1387,7 +1422,6 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
     CXLType3Class *cvc = CXL_TYPE3_GET_CLASS(ct3d);
     uint64_t dpa_offset = 0;
     AddressSpace *as = NULL;
-    FemuCtrl *fc = &ct3d->fc;
     int res;
 
     res = cxl_type3_hpa_to_as_and_dpa(ct3d, host_addr, size,
@@ -1406,8 +1440,9 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
         return MEMTX_OK;
     }
 
-    if(ct3d->hostcmmh)
-        cmm_h_read(ct3d, as, dpa_offset, attrs, data, size);
+    if(ct3d->hostcmmh) {
+        uint64_t lat = cmm_h_read(ct3d, as, dpa_offset, attrs, data, size);
+    }
 
     return address_space_read(as, dpa_offset, attrs, data, size);
 }
@@ -1434,7 +1469,13 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
 
     if (sanitize_running(&ct3d->cci)) {
         return MEMTX_OK;
-    } return address_space_write(as, dpa_offset, attrs, &data, size);
+    }
+    
+    if(ct3d->hostcmmh) {
+        uint64_t lat = cmm_h_write(ct3d, as, dpa_offset, attrs, data, size);
+    }
+
+    return address_space_write(as, dpa_offset, attrs, &data, size);
 }
 
 void ct3d_reset(DeviceState *dev)

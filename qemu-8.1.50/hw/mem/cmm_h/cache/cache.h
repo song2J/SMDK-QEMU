@@ -32,6 +32,6 @@ typedef struct CMMHCache {
     
 } CMMHCache;
 
-extern void cache_init(CMMHCache *cache);
+extern void cmmh_cache_init(CMMHCache *cache);
 
 #endif
