@@ -38,6 +38,7 @@ typedef struct CMMHFlashRequest {
     uint8_t                 opcode;
     /* position in the priority queue for delay emulation */
     size_t                  pos;
+    int64_t                 stime;
 } CMMHFlashRequest;
 
 /* do NOT go beyound 256 (uint8_t) */

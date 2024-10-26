@@ -2,8 +2,6 @@
 
 //#define CMMH_FLASH_DEBUG_FTL
 
-static void *ftl_thread(void *arg);
-
 static inline bool should_gc(struct ssd *ssd)
 {
     return (ssd->lm.free_line_cnt <= ssd->sp.gc_thres_lines);
@@ -860,7 +858,7 @@ static uint64_t ssd_write(struct ssd *ssd, CMMHFlashRequest *req)
     Fix argument to (FemuCtrl*, uint64_t lba, int size, bool is_write)
     So that hide cmd_to_req
 */
-void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashRequest* req){
+static void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashRequest* req){
     req->is_write = is_write;
     if(is_write)
         req->opcode = CMMH_FLASH_CMD_WRITE;
@@ -870,18 +868,18 @@ void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashRequest* r
     req->nlb = size;
 }
 
-uin64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write){
+static uint64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write){
     struct ssd *ssd = n->ssd;
     CMMHFlashRequest req;
     bbssd_cmd_to_req(lba, size, is_write, &req);
     uint64_t lat;
-    switch (req.cmd.opcode) {
+    switch (req.opcode) {
     case CMMH_FLASH_CMD_WRITE:
-        lat = ssd_write(ssd, req);
+        lat = ssd_write(ssd, &req);
 		printf("CMMH: cmm_flash SSD_WRITE\n");
         break;
     case CMMH_FLASH_CMD_READ:
-        lat = ssd_read(ssd, req);
+        lat = ssd_read(ssd, &req);
        	printf("CMMH: cmmh_flash SSD_READ\n");
         break;
     case CMMH_FLASH_CMD_DSM:
@@ -891,12 +889,12 @@ uin64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write){
         //ftl_err("FTL received unkown request type, ERROR\n");
         ;
     }
-    req->reqlat = lat;
-    req->expire_time += lat;
+    req.reqlat = lat;
+    req.expire_time += lat;
     return lat;
 }
 /* bb <=> black-box */
-static void bb_init(CMMHFlashCtrl *n)
+void bb_init(CMMHFlashCtrl *n)
 {
     n->start_time = time(NULL);
     struct ssd *ssd = n->ssd = g_malloc0(sizeof(struct ssd));
@@ -926,8 +924,7 @@ static void bb_init(CMMHFlashCtrl *n)
     }
 }
 
-void cmmh_register_bb_flash_ops(FemuCtrl* n){
-    n->flash_ops.cmd_to_req = bbssd_cmd_to_req;
+void cmmh_register_bb_flash_ops(CMMHFlashCtrl* n){
     n->flash_ops.ftl_io=bbssd_ftl_io;
     n->flash_ops.init=bb_init;
 }

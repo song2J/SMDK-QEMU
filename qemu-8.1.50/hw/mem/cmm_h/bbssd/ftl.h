@@ -210,7 +210,7 @@ struct ssd {
     QemuThread ftl_thread;
 };
 
-void ssd_init(FlashCtrl *n);
+extern void ssd_init(CMMHFlashCtrl *n);
 
 #ifdef CMMH_DEBUG_FTL
 #define cmmh_debug(fmt, ...) \
