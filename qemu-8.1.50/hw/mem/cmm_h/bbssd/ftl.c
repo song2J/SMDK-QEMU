@@ -513,7 +513,7 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         break;
 
     default:
-        ftl_err("Unsupported NAND command: 0x%x\n", c);
+        cmmh_ftl_err("Unsupported NAND command: 0x%x\n", c);
     }
 
     return lat;

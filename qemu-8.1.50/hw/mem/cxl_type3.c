@@ -1439,6 +1439,7 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
     }
 
     if(ct3d->hostcmmh) {
+        /* TODO: save latency info */
         uint64_t lat = cmm_h_read(ct3d, as, dpa_offset, attrs, data, size);
     }
 
@@ -1515,15 +1516,15 @@ static Property ct3_props[] = {
                     TYPE_MEMORY_BACKEND, HostMemoryBackend *),
 
     /*FemuCtrl*/
-    DEFINE_PROP_UINT16("enable_gc_delay", CXLType3Dev, cmm_h.fc.enable_gc_delay, 0), /* in MB */
-    DEFINE_PROP_UINT16("enable_delay_emu", CXLType3Dev, cmm_h.fc.enable_delay_emu, 0), /* in MB */
+    DEFINE_PROP_UINT8("enable_gc_delay", CXLType3Dev, cmm_h.fc.enable_gc_delay, 0), /* in MB */
+    DEFINE_PROP_UINT8("enable_delay_emu", CXLType3Dev, cmm_h.fc.enable_delay_emu, 0), /* in MB */
     DEFINE_PROP_STRING("serial", CXLType3Dev, cmm_h.fc.serial),
     DEFINE_PROP_UINT32("devsz_mb", CXLType3Dev, cmm_h.fc.memsz, 1024), /* in MB */
     DEFINE_PROP_UINT32("namespaces", CXLType3Dev, cmm_h.fc.num_namespaces, 1),
     DEFINE_PROP_UINT8("lba_index", CXLType3Dev, cmm_h.fc.lba_index, 0),
     DEFINE_PROP_UINT16("vid", CXLType3Dev, cmm_h.fc.vid, 0x1d1d),
     DEFINE_PROP_UINT16("did", CXLType3Dev, cmm_h.fc.did, 0x1f1f),
-    DEFINE_PROP_UINT8("flash_type", CXLType3Dev, cmm_h.fc.flash_type, MLC),
+    //DEFINE_PROP_UINT8("flash_type", CXLType3Dev, cmm_h.fc.flash_type, MLC),
     DEFINE_PROP_INT32("secsz", CXLType3Dev, cmm_h.fc.bb_params.secsz, 512),
     DEFINE_PROP_INT32("secs_per_pg", CXLType3Dev, cmm_h.fc.bb_params.secs_per_pg, 8),
     DEFINE_PROP_INT32("pgs_per_blk", CXLType3Dev, cmm_h.fc.bb_params.pgs_per_blk, 256),
