@@ -358,7 +358,7 @@ static void ssd_init_rmap(struct ssd *ssd)
     }
 }
 
-void ssd_init(CMMHFlashCtrl *n)
+static void ssd_init(CMMHFlashCtrl *n)
 {
     struct ssd *ssd = n->ssd;
     struct ssdparams *spp = &ssd->sp;
