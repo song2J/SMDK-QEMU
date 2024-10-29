@@ -774,7 +774,7 @@ static uint64_t ssd_read(struct ssd *ssd, CMMHFlashRequest *req)
     uint64_t sublat, maxlat = 0;
 
     if (end_lpn >= spp->tt_pgs) {
-        ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
+        cmmh_ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
     }
 
     /* normal IO read path */
@@ -811,7 +811,7 @@ static uint64_t ssd_write(struct ssd *ssd, CMMHFlashRequest *req)
     int r;
 
     if (end_lpn >= spp->tt_pgs) {
-        ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
+        cmmh_ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
     }
 
     while (should_gc_high(ssd)) {
