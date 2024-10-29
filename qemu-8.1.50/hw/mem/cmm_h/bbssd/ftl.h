@@ -206,8 +206,6 @@ struct ssd {
     bool *dataplane_started_ptr;
 };
 
-extern void ssd_init(CMMHFlashCtrl *n);
-
 #ifdef CMMH_DEBUG_FTL
 #define cmmh_ftl_debug(fmt, ...) \
     do { printf("[CMMH] FTL-Dbg: " fmt, ## __VA_ARGS__); } while (0)
