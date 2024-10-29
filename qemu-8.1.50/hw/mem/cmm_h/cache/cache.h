@@ -21,9 +21,9 @@ typedef struct CacheNode {
 } CacheNode;
 
 typedef struct CMMHCache {
-    int page_bits;
+    int line_bits;
     int index_bits;
-    int tag_bits;
+    //int tag_bits;
 
     int num_tag; // How many tags per each idx?
     CacheNode **table;
@@ -33,6 +33,6 @@ typedef struct CMMHCache {
     
 } CMMHCache;
 
-extern void cmmh_cache_init(CMMHCache *cache);
+extern void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits);
 
 #endif

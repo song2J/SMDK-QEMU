@@ -5,22 +5,22 @@
 
 static inline uint64_t getCacheOffset(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa & ((1 << cc->page_bits) - 1));
+    return (dpa & ((1 << cc->line_bits) - 1));
 }
 
 static inline uint64_t getCacheTag(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa >> (cc->page_bits + cc->index_bits)) & ((1 << (cc->tag_bits)) - 1);
+    return (dpa >> (cc->line_bits + cc->index_bits));// & ((1 << (cc->tag_bits)) - 1);
 }
 
 static inline uint64_t getCacheIdx(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa >> (cc->page_bits)) & ((1 << (cc->index_bits)) - 1);
+    return (dpa >> (cc->line_bits)) & ((1 << (cc->index_bits)) - 1);
 }
 
 static inline uint64_t get_dpa(CMMHCache *cc, uint64_t tag, uint64_t idx, uint64_t addr)
 {
-    return (tag << (cc->index_bits + cc->page_bits)) + (idx << cc->page_bits) + addr;
+    return (tag << (cc->index_bits + cc->line_bits)) + (idx << cc->line_bits) + addr;
 }
 
 static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
@@ -82,8 +82,10 @@ static CacheAccessResult cache_write(CMMHCache *cc, uint64_t dpa, uint64_t *vict
     return accessCache(cc, dpa, true, victim);
 }
 
-void cmmh_cache_init(CMMHCache *cache)
+void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
 {
+    /* Currently single NAND Flash page size */
+    cache->line_bits = pg_bits;
     int index_bits  = cache->index_bits;
     int num_tag     = cache->num_tag;
 

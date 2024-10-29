@@ -920,6 +920,13 @@ static void bb_init(CMMHFlashCtrl *n)
         ssd->sp.ch_xfer_lat = 0;
         cmmh_ftl_log("%s,CMMH Delay Emulation [Disabled]!\n", n->devname);
     }
+    n->page_size = (uint16_t)(ssd->sp.secsz * ssd->sp.secs_per_pg);
+    n->page_bits = 0;
+    uint16_t pg_size = n->page_size;
+    while(pg_size){
+        pg_size >> 1;
+        n->page_bits++;
+    }
 }
 
 void cmmh_register_bb_flash_ops(CMMHFlashCtrl* n){

@@ -802,8 +802,9 @@ static void cmmh_ctrl_init(CXLType3Dev *ct3d)
     //flash init
     cmmh_register_bb_flash_ops(&(ct3d->cmm_h.fc));
     ct3d->cmm_h.fc.flash_ops.init(&(ct3d->cmm_h.fc));
+
     //cache init
-    cmmh_cache_init(&(ct3d->cmm_h.cache));
+    cmmh_cache_init(&(ct3d->cmm_h.cache), ct3d->cmm_h.fc.page_bits);
 }
 
 /* 
@@ -1516,8 +1517,8 @@ static Property ct3_props[] = {
                     TYPE_MEMORY_BACKEND, HostMemoryBackend *),
 
     /*FemuCtrl*/
-    DEFINE_PROP_UINT8("enable_gc_delay", CXLType3Dev, cmm_h.fc.enable_gc_delay, 0), /* in MB */
-    DEFINE_PROP_UINT8("enable_delay_emu", CXLType3Dev, cmm_h.fc.enable_delay_emu, 0), /* in MB */
+    DEFINE_PROP_UINT8("enable_gc_delay", CXLType3Dev, cmm_h.fc.enable_gc_delay, 0),
+    DEFINE_PROP_UINT8("enable_delay_emu", CXLType3Dev, cmm_h.fc.enable_delay_emu, 1),
     DEFINE_PROP_STRING("serial", CXLType3Dev, cmm_h.fc.serial),
     DEFINE_PROP_UINT32("devsz_mb", CXLType3Dev, cmm_h.fc.memsz, 1024), /* in MB */
     DEFINE_PROP_UINT32("namespaces", CXLType3Dev, cmm_h.fc.num_namespaces, 1),
@@ -1538,6 +1539,10 @@ static Property ct3_props[] = {
     DEFINE_PROP_INT32("ch_xfer_lat", CXLType3Dev, cmm_h.fc.bb_params.ch_xfer_lat, 0),
     DEFINE_PROP_INT32("gc_thres_pcent", CXLType3Dev, cmm_h.fc.bb_params.gc_thres_pcent, 75),
     DEFINE_PROP_INT32("gc_thres_pcent_high", CXLType3Dev, cmm_h.fc.bb_params.gc_thres_pcent_high, 95),
+
+    /* Cache props */
+    DEFINE_PROP_INT32("cache_index_bits", CXLType3Dev, cmm_h.cache.index_bits, 20),
+    DEFINE_PROP_INT32("cache_num_tag", CXLType3Dev, cmm_h.cache.num_tag, 16),
  
     DEFINE_PROP_END_OF_LIST(),
 };
