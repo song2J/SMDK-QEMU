@@ -14,7 +14,7 @@
 
 #include "inc/rte_ring.h"
 #include "inc/pqueue.h"
-#include "timing-model/timing.h"
+//#include "timing-model/timing.h"
 
 #define CMMH_SPARE_THRESHOLD    20
 #define CMMH_TEMPERATURE        0x143
