@@ -924,7 +924,7 @@ static void bb_init(CMMHFlashCtrl *n)
     n->page_bits = 0;
     uint16_t pg_size = n->page_size;
     while(pg_size){
-        pg_size >> 1;
+        pg_size = pg_size >> 1;
         n->page_bits++;
     }
     cmmh_ftl_log("CMMH Page Bits: %d, Page Size: %d\n", n->page_bits, n->page_size);
