@@ -94,7 +94,7 @@ void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
     int index_bits  = cache->index_bits;
     int num_tag     = cache->num_tag;
 
-    cache->table = g_malloc0(sizeof(CacheNode*) * index_bits);
+    cache->table = g_malloc0(sizeof(CacheNode*) * (1 << index_bits));
     for(int i = 0; i < (1 << index_bits); i++) {
         for(int j = 0; j < num_tag; j++) {
             CacheNode* curr = g_malloc0(sizeof(CacheNode));
