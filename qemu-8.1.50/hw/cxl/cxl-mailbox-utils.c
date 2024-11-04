@@ -884,6 +884,13 @@ static void __do_sanitization(CXLType3Dev *ct3d)
             memset(hostmem, 0, memory_region_size(mr));
         }
     }
+    if (ct3d->hostcmmh) {
+        mr = host_memory_backend_get_memory(ct3d->hostcmmh);
+        if (mr) {
+            void *hostmem = memory_region_get_ram_ptr(mr);
+            memset(hostmem, 0, memory_region_size(mr));
+        }
+    }
     if (ct3d->lsa) {
         mr = host_memory_backend_get_memory(ct3d->lsa);
         if (mr) {
