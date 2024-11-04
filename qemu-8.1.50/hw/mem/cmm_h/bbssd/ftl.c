@@ -875,12 +875,12 @@ static uint64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_w
     uint64_t lat;
     switch (req.opcode) {
     case CMMH_FLASH_CMD_WRITE:
+        cmmh_ftl_log("CMMH: cmm_flash SSD_WRITE\n");
         lat = ssd_write(ssd, &req);
-		printf("CMMH: cmm_flash SSD_WRITE\n");
         break;
     case CMMH_FLASH_CMD_READ:
+        cmmh_ftl_log("CMMH: cmm_flash SSD_READ\n");
         lat = ssd_read(ssd, &req);
-       	printf("CMMH: cmmh_flash SSD_READ\n");
         break;
     case CMMH_FLASH_CMD_DSM:
         lat = 0;
@@ -927,6 +927,7 @@ static void bb_init(CMMHFlashCtrl *n)
         pg_size >> 1;
         n->page_bits++;
     }
+    cmmh_ftl_log("CMMH Page Bits: %d, Page Size: %d\n", n->page_bits, n->page_size);
 }
 
 void cmmh_register_bb_flash_ops(CMMHFlashCtrl* n){
