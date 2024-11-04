@@ -74,21 +74,21 @@ static CacheAccessResult accessCache(CMMHCache* cc, uint64_t dpa,
 
 static CacheAccessResult cache_read(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
-    cmmh_ftl_log("%s, CMMH Cache read [Entered]!\n", "CACHYEE");
+    cmmh_cache_log("%s, CMMH Cache read [Entered]!\n", "CACHYEE");
     CacheAccessResult ret = accessCache(cc, dpa, false, victim);
-    cmmh_ftl_log("%s, CMMH Cache read [FINISHED]!\n", "CACHYEE");
+    cmmh_cache_log("%s, CMMH Cache read [FINISHED]!\n", "CACHYEE");
 }
 
 static CacheAccessResult cache_write(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
-    cmmh_ftl_log("%s, CMMH Cache write [Entered]!\n", "CACHYEE");
+    cmmh_cache_log("%s, CMMH Cache write [Entered]!\n", "CACHYEE");
     return accessCache(cc, dpa, true, victim);
-    cmmh_ftl_log("%s, CMMH Cache write [FINISHED]!\n", "CACHYEE");
+    cmmh_cache_log("%s, CMMH Cache write [FINISHED]!\n", "CACHYEE");
 }
 
 void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
 {
-    cmmh_ftl_log("%s, CMMH Cache initialization [Entered]!\n", "CACHYEE");
+    cmmh_cache_log("%s, CMMH Cache initialization [Entered]!\n", "CACHYEE");
     /* Currently single NAND Flash page size */
     cache->line_bits = pg_bits;
     int index_bits  = cache->index_bits;
@@ -106,5 +106,5 @@ void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
 
     cache->read = cache_read;
     cache->write = cache_write;
-    cmmh_ftl_log("%s, CMMH Cache initialization [FINISHED]!\n", "CACHYEE");
+    cmmh_cache_log("%s, CMMH Cache initialization [FINISHED]!\n", "CACHYEE");
 }
