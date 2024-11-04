@@ -991,7 +991,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
 
         pmr = host_memory_backend_get_memory(ct3d->hostpmem);
         if (!pmr) {
-            error_setg(errp, "cmm-hybrid memdev must have backing device");
+            error_setg(errp, "persistent memdev must have backing device");
             return false;
         }
         memory_region_set_nonvolatile(pmr, true);
@@ -1014,19 +1014,19 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
 
         pmr = host_memory_backend_get_memory(ct3d->hostcmmh);
         if (!pmr) {
-            error_setg(errp, "persistent memdev must have backing device");
+            error_setg(errp, "cmm-hybrid memdev must have backing device");
             return false;
         }
         memory_region_set_nonvolatile(pmr, true);
         memory_region_set_enabled(pmr, true);
         host_memory_backend_set_mapped(ct3d->hostcmmh, true);
         if (ds->id) {
-            p_name = g_strdup_printf("cxl-type3-dpa-cmm_h-space:%s", ds->id);
+            p_name = g_strdup_printf("cxl-type3-dpa-cmmh-space:%s", ds->id);
         } else {
-            p_name = g_strdup("cxl-type3-dpa-cmm_h-space");
+            p_name = g_strdup("cxl-type3-dpa-cmmh-space");
         }
         address_space_init(&ct3d->hostcmmh_as, pmr, p_name);
-        ct3d->cxl_dstate.cmmh_size = memory_region_size(pmr);
+        ct3d->cxl_dstate.pmem_size = memory_region_size(pmr);
         ct3d->cxl_dstate.static_mem_size += memory_region_size(pmr);
         g_free(p_name);
 
