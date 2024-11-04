@@ -2329,6 +2329,13 @@ void qmp_cxl_release_dynamic_capacity(const char *path,
                                      errp);
 }
 
+void qmp_cxl_get_cmmh_metadata(const char *path,
+                                uint32_t which,
+                                Error **errp)
+{
+    
+}
+
 static void ct3_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
