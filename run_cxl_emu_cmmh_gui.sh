@@ -33,14 +33,13 @@ gc_thres_pcent_high=95
 #-----------------------------------------------------------------------
 
 #Compose the entire FEMU BBSSD command line options
-FEMU_OPTIONS="-device cxl-type3 "
-FEMU_OPTIONS=${FEMU_OPTIONS}",bus=root_port13 "
+FEMU_OPTIONS="-device cxl-type3"
+FEMU_OPTIONS=${FEMU_OPTIONS}",bus=root_port13"
 FEMU_OPTIONS=${FEMU_OPTIONS}",cmm-hybrid-memdev=cmmh0"
 FEMU_OPTIONS=${FEMU_OPTIONS}",lsa=cxl-lsa1"
 FEMU_OPTIONS=${FEMU_OPTIONS}",id=cxl-cmmh0"
 FEMU_OPTIONS=${FEMU_OPTIONS}",devsz_mb=${ssd_size}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",namespaces=1"
-FEMU_OPTIONS=${FEMU_OPTIONS}",femu_mode=1"
 FEMU_OPTIONS=${FEMU_OPTIONS}",secsz=${secsz}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",secs_per_pg=${secs_per_pg}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",pgs_per_blk=${pgs_per_blk}"
@@ -54,7 +53,7 @@ FEMU_OPTIONS=${FEMU_OPTIONS}",blk_er_lat=${blk_er_lat}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",gc_thres_pcent=${gc_thres_pcent}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",gc_thres_pcent_high=${gc_thres_pcent_high}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",enable_gc_delay=${enable_gc_delay}"
-FEMU_OPTIONS=${FEMU_OPTIONS}",enable_emu_delay=${enable_emu_delay}"
+FEMU_OPTIONS=${FEMU_OPTIONS}",enable_delay_emu=${enable_emu_delay}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",cache_index_bits=${cache_index_bits}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",cache_num_tag=${cache_num_tag}"
 
@@ -62,7 +61,7 @@ echo ${FEMU_OPTIONS}
 QEMU_PATH=${BASEDIR}/lib/qemu/
 QEMU_BUILD_PATH=${QEMU_PATH}/qemu-8.1.50/build/
 IMAGE_PATH=${QEMU_PATH}/qemu-image-gui.img
-MONITOR_PORT=45454
+MONITOR_PORT=8080
 
 QEMU_SYSTEM_BINARY=${QEMU_BUILD_PATH}/qemu-system-x86_64
 
@@ -82,15 +81,15 @@ sudo ${QEMU_SYSTEM_BINARY} \
     -numa node,cpus=0-5,memdev=mem0,nodeid=0 \
     -object memory-backend-ram,id=mem0,size=8G \
     -m 8G,slots=8,maxmem=16G \
-    -drive file=${IMAGE_PATH},format=qcow2 \
+    -drive file=${IMAGE_PATH},format=qcow2\
     -serial mon:stdio \
     -device e1000,netdev=net0 \
     -netdev user,id=net0,hostfwd=tcp::2242-:22 \
     -monitor telnet::${MONITOR_PORT},server,nowait \
     -machine q35,cxl=on \
-    -M cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=12G \
+    -M cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=16G \
     -device pxb-cxl,bus_nr=12,bus=pcie.0,id=cxl.1 \
     -device cxl-rp,port=0,bus=cxl.1,id=root_port13,chassis=0,slot=2 \
-    -object memory-backend-ram,id=cmmh0,share=on,size=12G \
+    -object memory-backend-file,id=cmmh0,share=on,mem-path=/tmp/cmmh.raw,size=12G \
     -object memory-backend-file,id=cxl-lsa1,share=on,mem-path=/tmp/lsa.raw,size=12G \
 	${FEMU_OPTIONS} 
