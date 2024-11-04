@@ -1,26 +1,29 @@
 #include "cache.h"
+#include "qemu/osdep.h"
+#include "qemu/uuid.h"
+#include "qemu/units.h"
 
-inline uint64_t getCacheOffset(CMMHCache* cc, uint64_t dpa)
+static inline uint64_t getCacheOffset(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa & ((1 << cc->page_bits) - 1));
+    return (dpa & ((1 << cc->line_bits) - 1));
 }
 
-inline uint64_t getCacheTag(CMMHCache* cc, uint64_t dpa)
+static inline uint64_t getCacheTag(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa >> (cc->page_bits + cc->index_bits)) & ((1 << (cc->tag_bits)) - 1);
+    return (dpa >> (cc->line_bits + cc->index_bits));// & ((1 << (cc->tag_bits)) - 1);
 }
 
-inline uint64_t getCacheIdx(CMMHCache* cc, uint64_t dpa)
+static inline uint64_t getCacheIdx(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa >> (cc->page_bits)) & ((1 << (cc->index_bits)) - 1);
+    return (dpa >> (cc->line_bits)) & ((1 << (cc->index_bits)) - 1);
 }
 
-inline uint64_t get_dpa(CMMHCache *cc, uint64_t tag, uint64_t idx, uint64_t addr)
+static inline uint64_t get_dpa(CMMHCache *cc, uint64_t tag, uint64_t idx, uint64_t addr)
 {
-    return (tag << (cc->index_bits + cc->page_bits)) + (idx << cc->page_bits) + addr;
+    return (tag << (cc->index_bits + cc->line_bits)) + (idx << cc->line_bits) + addr;
 }
 
-void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
+static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
 {
     CacheNode *prev = curr->prev;
     CacheNode *next = curr->next;
@@ -39,7 +42,7 @@ void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
     *head = curr;
 }
 
-CacheAccessResult accessCache(CMMHCache* cc, uint64_t dpa, 
+static CacheAccessResult accessCache(CMMHCache* cc, uint64_t dpa, 
                 bool if_modify, uint64_t *victim)
 {
     uint64_t tag = getCacheTag(cc, dpa);
@@ -69,26 +72,35 @@ CacheAccessResult accessCache(CMMHCache* cc, uint64_t dpa,
     return evict_dirty ? MISS_DIRTY : MISS_CLEAN;
 }
 
-CacheAccessResult cache_read(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
+static CacheAccessResult cache_read(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
-    return accessCache(cc, dpa, false, victim);
+    cmmh_cache_log("%s, CMMH Cache read [Entered]!\n", "CACHYEE");
+    CacheAccessResult ret = accessCache(cc, dpa, false, victim);
+    cmmh_cache_log("%s, CMMH Cache read [FINISHED]!\n", "CACHYEE");
 }
 
-CacheAccessResult cache_write(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
+static CacheAccessResult cache_write(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
+    cmmh_cache_log("%s, CMMH Cache write [Entered]!\n", "CACHYEE");
     return accessCache(cc, dpa, true, victim);
+    cmmh_cache_log("%s, CMMH Cache write [FINISHED]!\n", "CACHYEE");
 }
 
-static void cmmh_cache_init(CMMHCache *cache)
+void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
 {
+    cmmh_cache_log("%s, CMMH Cache initialization [Entered]!\n", "CACHYEE");
+    /* Currently single NAND Flash page size */
+    cache->line_bits = pg_bits;
     int index_bits  = cache->index_bits;
     int num_tag     = cache->num_tag;
 
-    cache->table = g_malloc0(sizeof(CacheNode*) * index_bits);
+    cache->table = g_malloc0(sizeof(CacheNode*) * (1 << index_bits));
     for(int i = 0; i < (1 << index_bits); i++) {
+        cache->table[i] = NULL;
         for(int j = 0; j < num_tag; j++) {
             CacheNode* curr = g_malloc0(sizeof(CacheNode));
-            cache->table[i]->prev = curr;
+            if(cache->table[i] != NULL)
+                cache->table[i]->prev = curr;
             curr->next = cache->table[i];
             cache->table[i] = curr;
         }
@@ -96,4 +108,5 @@ static void cmmh_cache_init(CMMHCache *cache)
 
     cache->read = cache_read;
     cache->write = cache_write;
+    cmmh_cache_log("%s, CMMH Cache initialization [FINISHED]!\n", "CACHYEE");
 }

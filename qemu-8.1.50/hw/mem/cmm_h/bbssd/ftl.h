@@ -203,35 +203,29 @@ struct ssd {
     struct write_pointer wp;
     struct line_mgmt lm;
 
-    /* lockless ring for communication with NVMe IO thread */
-    struct rte_ring **to_ftl;
-    struct rte_ring **to_poller;
     bool *dataplane_started_ptr;
-    QemuThread ftl_thread;
 };
 
-void ssd_init(FlashCtrl *n);
-
 #ifdef CMMH_DEBUG_FTL
-#define cmmh_debug(fmt, ...) \
+#define cmmh_ftl_debug(fmt, ...) \
     do { printf("[CMMH] FTL-Dbg: " fmt, ## __VA_ARGS__); } while (0)
 #else
-#define cmmh_debug(fmt, ...) \
+#define cmmh_ftl_debug(fmt, ...) \
     do { } while (0)
 #endif
 
-#define cmmh_err(fmt, ...) \
+#define cmmh_ftl_err(fmt, ...) \
     do { fprintf(stderr, "[CMMH] FTL-Err: " fmt, ## __VA_ARGS__); } while (0)
 
-#define cmmh_log(fmt, ...) \
+#define cmmh_ftl_log(fmt, ...) \
     do { printf("[CMMH] FTL-Log: " fmt, ## __VA_ARGS__); } while (0)
 
 
 /* CMMH assert() */
 #ifdef CMMH_DEBUG_FTL
-#define cmmh_assert(expression) assert(expression)
+#define ftl_assert(expression) assert(expression)
 #else
-#define cmmh_assert(expression)
+#define ftl_assert(expression)
 #endif
 
 #endif

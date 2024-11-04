@@ -236,7 +236,6 @@ typedef struct cxl_device_state {
     /* memory region size, HDM */
     uint64_t static_mem_size;
     uint64_t pmem_size;
-    uint64_t cmmh_size;
     uint64_t vmem_size;
     bool is_dcd;
 

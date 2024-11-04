@@ -14,7 +14,7 @@
 
 #include "inc/rte_ring.h"
 #include "inc/pqueue.h"
-#include "timing-model/timing.h"
+//#include "timing-model/timing.h"
 
 #define CMMH_SPARE_THRESHOLD    20
 #define CMMH_TEMPERATURE        0x143
@@ -38,6 +38,7 @@ typedef struct CMMHFlashRequest {
     uint8_t                 opcode;
     /* position in the priority queue for delay emulation */
     size_t                  pos;
+    int64_t                 stime;
 } CMMHFlashRequest;
 
 /* do NOT go beyound 256 (uint8_t) */
@@ -95,14 +96,14 @@ typedef struct CMMHFlashCtrl {
     /* Nand Flash Type: SLC/MLC/TLC/QLC/PLC */
     uint8_t         flash_type;
     struct {
-        uin64_t (*ftl_io)(CMMHFlashCtrl*, uint64_t, int, bool);
-        void    (*init)(CMMHFlashCtrl*);
+        uint64_t    (*ftl_io)(struct CMMHFlashCtrl*, uint64_t, int, bool);
+        void        (*init)(struct CMMHFlashCtrl*);
     } flash_ops;
 
 
 } CMMHFlashCtrl;
 
-int cmmh_register_bb_flash_ops(FemuCtrl *n);
+extern void cmmh_register_bb_flash_ops(CMMHFlashCtrl* n);
 
 #define MN_MAX_LEN (64)
 #define ID_MAX_LEN (4)

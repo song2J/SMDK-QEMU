@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef enum {
     HIT = 0,
@@ -20,9 +21,9 @@ typedef struct CacheNode {
 } CacheNode;
 
 typedef struct CMMHCache {
-    int page_bits;
+    int line_bits;
     int index_bits;
-    int tag_bits;
+    //int tag_bits;
 
     int num_tag; // How many tags per each idx?
     CacheNode **table;
@@ -32,6 +33,12 @@ typedef struct CMMHCache {
     
 } CMMHCache;
 
-extern void cmmh_cache_init(CMMHCache *cache);
+extern void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits);
+#define cmmh_cache_err(fmt, ...) \
+    do { fprintf(stderr, "[CMMH] Cache-Err: " fmt, ## __VA_ARGS__); } while (0)
+
+#define cmmh_cache_log(fmt, ...) \
+    do { printf("[CMMH] Cache-Log: " fmt, ## __VA_ARGS__); } while (0)
+
 
 #endif

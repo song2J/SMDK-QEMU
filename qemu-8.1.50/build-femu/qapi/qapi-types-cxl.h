@@ -148,6 +148,7 @@ struct q_obj_cxl_inject_memory_module_event_arg {
     uint32_t dirty_shutdown_count;
     uint32_t corrected_volatile_error_count;
     uint32_t corrected_persistent_error_count;
+    uint32_t corrected_cmmh_error_count;
 };
 
 struct q_obj_cxl_inject_poison_arg {

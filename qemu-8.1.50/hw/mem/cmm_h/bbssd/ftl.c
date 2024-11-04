@@ -2,8 +2,6 @@
 
 //#define CMMH_FLASH_DEBUG_FTL
 
-static void *ftl_thread(void *arg);
-
 static inline bool should_gc(struct ssd *ssd)
 {
     return (ssd->lm.free_line_cnt <= ssd->sp.gc_thres_lines);
@@ -145,7 +143,7 @@ static struct line *get_next_free_line(struct ssd *ssd)
 
     curline = QTAILQ_FIRST(&lm->free_line_list);
     if (!curline) {
-        ftl_err("No free lines left in [%s] !!!!\n", ssd->ssdname);
+        cmmh_ftl_err("No free lines left in [%s] !!!!\n", ssd->ssdname);
         return NULL;
     }
 
@@ -360,7 +358,7 @@ static void ssd_init_rmap(struct ssd *ssd)
     }
 }
 
-void ssd_init(CMMHFlashCtrl *n)
+static void ssd_init(CMMHFlashCtrl *n)
 {
     struct ssd *ssd = n->ssd;
     struct ssdparams *spp = &ssd->sp;
@@ -515,7 +513,7 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         break;
 
     default:
-        ftl_err("Unsupported NAND command: 0x%x\n", c);
+        cmmh_ftl_err("Unsupported NAND command: 0x%x\n", c);
     }
 
     return lat;
@@ -732,7 +730,7 @@ static int do_gc(struct ssd *ssd, bool force)
     }
 
     ppa.g.blk = victim_line->id;
-    ftl_debug("GC-ing line:%d,ipc=%d,victim=%d,full=%d,free=%d\n", ppa.g.blk,
+    cmmh_ftl_debug("GC-ing line:%d,ipc=%d,victim=%d,full=%d,free=%d\n", ppa.g.blk,
               victim_line->ipc, ssd->lm.victim_line_cnt, ssd->lm.full_line_cnt,
               ssd->lm.free_line_cnt);
 
@@ -776,7 +774,7 @@ static uint64_t ssd_read(struct ssd *ssd, CMMHFlashRequest *req)
     uint64_t sublat, maxlat = 0;
 
     if (end_lpn >= spp->tt_pgs) {
-        ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
+        cmmh_ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
     }
 
     /* normal IO read path */
@@ -813,7 +811,7 @@ static uint64_t ssd_write(struct ssd *ssd, CMMHFlashRequest *req)
     int r;
 
     if (end_lpn >= spp->tt_pgs) {
-        ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
+        cmmh_ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
     }
 
     while (should_gc_high(ssd)) {
@@ -860,7 +858,7 @@ static uint64_t ssd_write(struct ssd *ssd, CMMHFlashRequest *req)
     Fix argument to (FemuCtrl*, uint64_t lba, int size, bool is_write)
     So that hide cmd_to_req
 */
-void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashRequest* req){
+static void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashRequest* req){
     req->is_write = is_write;
     if(is_write)
         req->opcode = CMMH_FLASH_CMD_WRITE;
@@ -870,19 +868,19 @@ void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashRequest* r
     req->nlb = size;
 }
 
-uin64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write){
+static uint64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write){
     struct ssd *ssd = n->ssd;
     CMMHFlashRequest req;
     bbssd_cmd_to_req(lba, size, is_write, &req);
     uint64_t lat;
-    switch (req.cmd.opcode) {
+    switch (req.opcode) {
     case CMMH_FLASH_CMD_WRITE:
-        lat = ssd_write(ssd, req);
-		printf("CMMH: cmm_flash SSD_WRITE\n");
+        cmmh_ftl_log("CMMH: cmm_flash SSD_WRITE\n");
+        lat = ssd_write(ssd, &req);
         break;
     case CMMH_FLASH_CMD_READ:
-        lat = ssd_read(ssd, req);
-       	printf("CMMH: cmmh_flash SSD_READ\n");
+        cmmh_ftl_log("CMMH: cmm_flash SSD_READ\n");
+        lat = ssd_read(ssd, &req);
         break;
     case CMMH_FLASH_CMD_DSM:
         lat = 0;
@@ -891,8 +889,6 @@ uin64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write){
         //ftl_err("FTL received unkown request type, ERROR\n");
         ;
     }
-    req->reqlat = lat;
-    req->expire_time += lat;
     return lat;
 }
 /* bb <=> black-box */
@@ -901,33 +897,40 @@ static void bb_init(CMMHFlashCtrl *n)
     n->start_time = time(NULL);
     struct ssd *ssd = n->ssd = g_malloc0(sizeof(struct ssd));
     ssd->dataplane_started_ptr = &n->dataplane_started;
-    cmmh_debug("Starting CMMH Flash in Blackbox-SSD mode ...\n");
+    cmmh_ftl_debug("Starting CMMH Flash in Blackbox-SSD mode ...\n");
     ssd_init(n);
     if(n->enable_gc_delay){
         ssd->sp.enable_gc_delay = true;
-        cmmh_log("%s,CMMH GC Delay Emulation [Enabled]!\n", n->devname);
+        cmmh_ftl_log("%s,CMMH GC Delay Emulation [Enabled]!\n", n->devname);
     }
     else{
         ssd->sp.enable_gc_delay = false;
-        cmmh_log("%s,CMMH GC Delay Emulation [Disabled]!\n", n->devname);
+        cmmh_ftl_log("%s,CMMH GC Delay Emulation [Disabled]!\n", n->devname);
     }
     if(n->enable_delay_emu){
         ssd->sp.pg_rd_lat = NAND_READ_LATENCY;
         ssd->sp.pg_wr_lat = NAND_PROG_LATENCY;
         ssd->sp.blk_er_lat = NAND_ERASE_LATENCY;
         ssd->sp.ch_xfer_lat = 0;
-        cmmh_log("%s,CMMH Delay Emulation [Enabled]!\n", n->devname);
+        cmmh_ftl_log("%s,CMMH Delay Emulation [Enabled]!\n", n->devname);
     }else{
         ssd->sp.pg_rd_lat = 0;
         ssd->sp.pg_wr_lat = 0;
         ssd->sp.blk_er_lat = 0;
         ssd->sp.ch_xfer_lat = 0;
-        cmmh_log("%s,CMMH Delay Emulation [Disabled]!\n", n->devname);
+        cmmh_ftl_log("%s,CMMH Delay Emulation [Disabled]!\n", n->devname);
     }
+    n->page_size = (uint16_t)(ssd->sp.secsz * ssd->sp.secs_per_pg);
+    n->page_bits = 0;
+    uint16_t pg_size = n->page_size;
+    while(pg_size){
+        pg_size = pg_size >> 1;
+        n->page_bits++;
+    }
+    cmmh_ftl_log("CMMH Page Bits: %d, Page Size: %d\n", n->page_bits, n->page_size);
 }
 
-void cmmh_register_bb_flash_ops(FemuCtrl* n){
-    n->flash_ops.cmd_to_req = bbssd_cmd_to_req;
+void cmmh_register_bb_flash_ops(CMMHFlashCtrl* n){
     n->flash_ops.ftl_io=bbssd_ftl_io;
     n->flash_ops.init=bb_init;
 }
