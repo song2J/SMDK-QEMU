@@ -232,7 +232,7 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
 
     if (nonvolatile_mr) {
         rc = ct3_build_cdat_entries_for_mr(&(table[cur_ent]), dsmad_handle++,
-                                           vmr_size, true, false, pmr_size);
+                                           pmr_size, true, false, vmr_size);
         if (rc < 0) {
             goto error_cleanup;
         }
@@ -250,9 +250,8 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
          */
         for (i = 0; i < ct3d->dc.num_regions; i++) {
             rc = ct3_build_cdat_entries_for_mr(&(table[cur_ent]),
-                                               dsmad_handle++, region_base,
-                                               true, true,
-                                               ct3d->dc.regions[i].len);
+                                               dsmad_handle++, ct3d->dc.regions[i].len,
+                                               true, true, region_base);
             if (rc < 0) {
                 goto error_cleanup;
             }
