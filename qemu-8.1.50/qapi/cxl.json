@@ -424,9 +424,9 @@
 # CMMH custom
 ##
 { 'struct': 'CMMHMetadata',
-  'data': { 'flash-io-latency': 'double',
-            'write-amplification-factor': 'double',
-            'hit-miss-ratio': 'double'} }
+  'data': { 'flash-io-latency': 'uint64',
+            'write-amplification-factor': 'uint64',
+            'hit-miss-ratio': 'uint64'} }
 
 ##
 # @cxl-get-cmmh-metadata:
