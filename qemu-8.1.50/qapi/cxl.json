@@ -434,7 +434,6 @@
 # Command to get a hit/miss ratio of CMM-H in PMEM Mode
 #
 # @path: CXL type 3 device canonical QOM path
-# @which: Metadata which to get
 #
 # CMMH custom
 ##
