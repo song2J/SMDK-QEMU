@@ -63,7 +63,6 @@ typedef struct BbCtrlParams {
     int gc_thres_pcent_high;
 } BbCtrlParams;
 
-extern struct ssd;
 typedef struct CMMHFlashCtrl {
 
     time_t      start_time;
@@ -100,7 +99,17 @@ typedef struct CMMHFlashCtrl {
         uint64_t    (*ftl_io)(struct CMMHFlashCtrl*, uint64_t, int, bool);
         void        (*init)(struct CMMHFlashCtrl*);
     } flash_ops;
+    /* Status Cnt */
+    uint32_t        read_cnt;
+    uint32_t        write_cnt;
+    uint32_t        erase_cnt;
 
+    uint64_t        tot_read_lat;
+    uint64_t        tot_write_lat;
+    uint64_t        tot_erase_lat;
+
+    uint64_t        tot_read_req;
+    uint64_t        tot_write_req;
 
 } CMMHFlashCtrl;
 

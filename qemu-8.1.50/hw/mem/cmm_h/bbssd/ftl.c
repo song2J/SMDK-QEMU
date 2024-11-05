@@ -906,6 +906,17 @@ static uint64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_w
         //ftl_err("FTL received unkown request type, ERROR\n");
         ;
     }
+    /* Status Cnt */
+    n->read_cnt = ssd->read_cnt;
+    n->write_cnt = ssd->write_cnt;
+    n->erase_cnt = ssd->erase_cnt;
+
+    n->tot_read_lat = ssd->tot_read_lat;
+    n->tot_write_lat = ssd->tot_write_lat;
+    n->tot_erase_lat = ssd->tot_erase_lat;
+
+    n->tot_read_req = ssd->tot_read_req;
+    n->tot_write_req = ssd->tot_write_req;
     return lat;
 }
 /* bb <=> black-box */
