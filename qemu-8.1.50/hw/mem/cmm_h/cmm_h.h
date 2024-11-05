@@ -63,6 +63,7 @@ typedef struct BbCtrlParams {
     int gc_thres_pcent_high;
 } BbCtrlParams;
 
+extern struct ssd;
 typedef struct CMMHFlashCtrl {
 
     time_t      start_time;
