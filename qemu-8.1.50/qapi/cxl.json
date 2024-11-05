@@ -419,6 +419,16 @@
 }
 
 ##
+# @cmmh-metadata:
+#
+# CMMH custom
+##
+{ 'struct': 'cmmh-metadata',
+  'data': { 'flash-io-latency': 'double',
+            'write-amplification-factor': 'double',
+            'hit-miss-ratio': 'double'} }
+
+##
 # @cxl-get-cmmh-metadata:
 #
 # Command to get a hit/miss ratio of CMM-H in PMEM Mode
@@ -426,10 +436,10 @@
 # @path: CXL type 3 device canonical QOM path
 # @which: Metadata which to get
 #
-# Since: 8.1
+# CMMH custom
 ##
 { 'command': 'cxl-get-cmmh-metadata',
-  'data': { 'path': 'str',
-            'which': 'uint32'
-          }
+  'data': { 'path': 'str'},
+  'returns': 'cmmh-metadata'
 }
+
