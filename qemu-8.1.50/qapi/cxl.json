@@ -419,11 +419,11 @@
 }
 
 ##
-# @cmmh-metadata:
+# @CMMHMetadata:
 #
 # CMMH custom
 ##
-{ 'struct': 'cmmh-metadata',
+{ 'struct': 'CMMHMetadata',
   'data': { 'flash-io-latency': 'double',
             'write-amplification-factor': 'double',
             'hit-miss-ratio': 'double'} }
@@ -440,6 +440,6 @@
 ##
 { 'command': 'cxl-get-cmmh-metadata',
   'data': { 'path': 'str'},
-  'returns': 'cmmh-metadata'
+  'returns': 'CMMHMetadata'
 }
 
