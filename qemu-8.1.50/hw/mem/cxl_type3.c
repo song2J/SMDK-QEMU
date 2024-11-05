@@ -828,7 +828,7 @@ static uint64_t cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_off
     CMMHCache* cache = &(ct3d->cmm_h.cache);
     uint64_t victim;
 
-    fc->ssd->total_read_req += size/sizeof(uint64_t);
+    fc->ssd->tot_read_req += size/sizeof(uint64_t);
     while(size) {
         if((res = cache->read(cache, dpa_offset, &victim)) == HIT)
             continue;
@@ -870,7 +870,7 @@ static uint64_t cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_of
     CMMHCache* cache = &(ct3d->cmm_h.cache);
     uint64_t victim;
 
-    fc->ssd->total_write_req += size/sizeof(uint64_t);
+    fc->ssd->tot_write_req += size/sizeof(uint64_t);
     while(size) {
         if((res = cache->write(cache, dpa_offset, &victim)) == HIT)
             continue;
@@ -2337,11 +2337,11 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     Object *obj = object_resolve_path(path, NULL);
     if (!obj) {
         error_setg(errp, "Unable to resolve path");
-        return;
+        return NULL;
     }
     if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
         error_setg(errp, "Path not point to a valid CXL type3 device");
-        return;
+        return NULL;
     }
     CXLType3Dev *ct3d = CXL_TYPE3(obj);
     CMMHFlashCtrl *fc = &(ct3d->cmm_h.fc);
