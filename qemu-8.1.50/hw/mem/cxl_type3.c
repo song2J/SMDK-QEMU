@@ -2344,8 +2344,8 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
         return;
     }
     CXLType3Dev *ct3d = CXL_TYPE3(obj);
-    CMMHFlashCtrl *fc = ct3d->cmm_h.fc;
-    CMMHCache *cc = ct3d->cmm_h.cache;
+    CMMHFlashCtrl *fc = &(ct3d->cmm_h.fc);
+    CMMHCache *cc = &(ct3d->cmm_h.cache);
 
     uint64_t tot_lat = fc->ssd->tot_read_lat \
                         + fc->ssd->tot_write_lat\
@@ -2362,9 +2362,9 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     ret->write_amplification_factor = g_new0(char, 50);
     ret->hit_miss_ratio = g_new0(char, 50);
     
-    sprintf(ret->flash_io_latency, 50, "%ld", tot_lat);
-    sprintf(ret->write_amplification_factor, 50, "%lf", waf);
-    sprintf(ret->hit_miss_ratio, 50, "%lf", hit_miss_ratio);
+    snprintf(ret->flash_io_latency, 50, "%ld", tot_lat);
+    snprintf(ret->write_amplification_factor, 50, "%lf", waf);
+    snprintf(ret->hit_miss_ratio, 50, "%lf", hit_miss_ratio);
     
     return ret;
 }
