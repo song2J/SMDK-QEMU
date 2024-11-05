@@ -362,8 +362,18 @@ static void ssd_init(CMMHFlashCtrl *n)
 {
     struct ssd *ssd = n->ssd;
     struct ssdparams *spp = &ssd->sp;
-
     ftl_assert(ssd);
+
+    ssd->read_cnt = 0;
+    ssd->write_cnt = 0;
+    ssd->erase_cnt = 0;
+    
+    ssd->tot_read_lat = 0;
+    ssd->tot_write_lat = 0;
+    ssd->tot_erase_lat = 0;
+
+    ssd->tot_read_req = 0;
+    ssd->tot_write_req = 0;
 
     ssd_init_params(spp, n);
 
@@ -466,6 +476,8 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
                      lun->next_lun_avail_time;
         lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
         lat = lun->next_lun_avail_time - cmd_stime;
+        ssd->read_cnt ++;
+        ssd->tot_read_lat += lat;
 #if 0
         lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
 
@@ -488,6 +500,8 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
             lun->next_lun_avail_time = nand_stime + spp->pg_wr_lat;
         }
         lat = lun->next_lun_avail_time - cmd_stime;
+        ssd->write_cnt ++;
+        ssd->tot_write_lat += lat;
 
 #if 0
         chnl_stime = (ch->next_ch_avail_time < cmd_stime) ? cmd_stime : \
@@ -510,6 +524,8 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         lun->next_lun_avail_time = nand_stime + spp->blk_er_lat;
 
         lat = lun->next_lun_avail_time - cmd_stime;
+        ssd->erase_cnt ++;
+        ssd->tot_erase_lat += lat;
         break;
 
     default:
@@ -619,6 +635,7 @@ static void gc_read_page(struct ssd *ssd, struct ppa *ppa)
         gcr.stime = 0;
         ssd_advance_status(ssd, ppa, &gcr);
     }
+    ssd->read_cnt ++;
 }
 
 /* move valid page data (already in DRAM) from victim line to a new page */
@@ -839,7 +856,7 @@ static uint64_t ssd_write(struct ssd *ssd, CMMHFlashRequest *req)
         mark_page_valid(ssd, &ppa);
 
         /* need to advance the write pointer here */
-        ssd_advance_write_pointer(ssd);
+        ssd_advance_write_pointer(ssd); /* increase write cnt */
 
         struct nand_cmd swr;
         swr.type = USER_IO;

@@ -828,6 +828,7 @@ static uint64_t cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_off
     CMMHCache* cache = &(ct3d->cmm_h.cache);
     uint64_t victim;
 
+    fc->ssd->total_read_req += size/sizeof(uint64_t);
     while(size) {
         if((res = cache->read(cache, dpa_offset, &victim)) == HIT)
             continue;
@@ -869,6 +870,7 @@ static uint64_t cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_of
     CMMHCache* cache = &(ct3d->cmm_h.cache);
     uint64_t victim;
 
+    fc->ssd->total_write_req += size/sizeof(uint64_t);
     while(size) {
         if((res = cache->write(cache, dpa_offset, &victim)) == HIT)
             continue;
