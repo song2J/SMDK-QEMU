@@ -2335,7 +2335,34 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
                                 Error **errp)
 {
     Object *obj = object_resolve_path(path, NULL);
+    if (!obj) {
+        error_setg(errp, "Unable to resolve path");
+        return;
+    }
+    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+        error_setg(errp, "Path not point to a valid CXL type3 device");
+        return;
+    }
+    CXLType3Dev *ct3d = CXL_TYPE3(obj);
+    CMMHFlashCtrl *fc = ct3d->cmm_h.fc;
+    CMMHCache *cc = ct3d->cmm_h.cache;
+
+    uint64_t tot_lat = fc->ssd->tot_read_lat \
+                        + fc->ssd->tot_write_lat\
+                        + fc->ssd->tot_erase_lat;
+    
+    uint64_t tot_write = fc->ssd->write_cnt * (fc->page_size/sizeof(uint64_t));
+    tot_write *= 10000;
+    uint64_t tot_write_req = fc->ssd->tot_write_req;
+    uint64_t waf = tot_write / tot_write_req;
+
+    uint64_t hit_miss_ratio = cc->cache_hit * 10000 / (cc->cache_hit + cc->cache_miss);
+
     CMMHMetadata *ret = g_new0(CMMHMetadata, 1);
+    ret->flash_io_latency = tot_lat;
+    ret->write_amplification_factor = waf;
+    ret->hit_miss_ratio = hit_miss_ratio;
+    
     return ret;
 }
 
