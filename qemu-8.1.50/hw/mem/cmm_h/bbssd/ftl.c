@@ -914,9 +914,6 @@ static uint64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_w
     n->tot_read_lat = ssd->tot_read_lat;
     n->tot_write_lat = ssd->tot_write_lat;
     n->tot_erase_lat = ssd->tot_erase_lat;
-
-    n->tot_read_req = ssd->tot_read_req;
-    n->tot_write_req = ssd->tot_write_req;
     return lat;
 }
 /* bb <=> black-box */
@@ -955,6 +952,14 @@ static void bb_init(CMMHFlashCtrl *n)
         pg_size = pg_size >> 1;
         n->page_bits++;
     }
+    n->tot_read_req = 0;
+    n->tot_write_req = 0;
+    n->tot_read_lat = 0;
+    n->tot_write_lat = 0;
+    n->tot_erase_lat = 0;
+    n->write_cnt = 0;
+    n->read_cnt = 0;
+    n->erase_cnt = 0;
     cmmh_ftl_log("CMMH Page Bits: %d, Page Size: %d\n", n->page_bits, n->page_size);
 }
 

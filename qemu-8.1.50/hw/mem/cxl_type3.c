@@ -828,7 +828,7 @@ static uint64_t cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_off
     CMMHCache* cache = &(ct3d->cmm_h.cache);
     uint64_t victim;
 
-    fc->ssd->tot_read_req += size/sizeof(uint64_t);
+    fc->tot_read_req += size/sizeof(uint64_t);
     while(size) {
         if((res = cache->read(cache, dpa_offset, &victim)) == HIT)
             continue;
@@ -870,7 +870,7 @@ static uint64_t cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_of
     CMMHCache* cache = &(ct3d->cmm_h.cache);
     uint64_t victim;
 
-    fc->ssd->tot_write_req += size/sizeof(uint64_t);
+    fc->tot_write_req += size/sizeof(uint64_t);
     while(size) {
         if((res = cache->write(cache, dpa_offset, &victim)) == HIT)
             continue;
@@ -2347,15 +2347,18 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     CMMHFlashCtrl *fc = &(ct3d->cmm_h.fc);
     CMMHCache *cc = &(ct3d->cmm_h.cache);
 
-    uint64_t tot_lat = fc->ssd->tot_read_lat \
-                        + fc->ssd->tot_write_lat\
-                        + fc->ssd->tot_erase_lat;
+    uint64_t tot_lat = fc->tot_read_lat \
+                        + fc->tot_write_lat\
+                        + fc->tot_erase_lat;
     
-    uint64_t tot_write = fc->ssd->write_cnt * (fc->page_size/sizeof(uint64_t));
-    uint64_t tot_write_req = fc->ssd->tot_write_req;
-    double waf = ((double)tot_write) / tot_write_req;
+    uint64_t tot_write = fc->write_cnt * (fc->page_size/sizeof(uint64_t));
+    uint64_t tot_write_req = fc->tot_write_req;
+    double waf = (tot_write_req != 0)? ((double)tot_write) / tot_write_req\
+                                    : 0;
 
-    double hit_miss_ratio = ((double)cc->cache_hit) / (cc->cache_hit + cc->cache_miss);
+    double hit_miss_ratio = (cc->cache_hit + cc->cache_miss != 0)? \
+                            ((double)cc->cache_hit) / (cc->cache_hit + cc->cache_miss)\
+                            : 0;
 
     CMMHMetadata *ret = g_new0(CMMHMetadata, 1);
     ret->flash_io_latency = g_new0(char, 50);
