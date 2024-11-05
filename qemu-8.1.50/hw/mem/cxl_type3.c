@@ -2352,16 +2352,19 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
                         + fc->ssd->tot_erase_lat;
     
     uint64_t tot_write = fc->ssd->write_cnt * (fc->page_size/sizeof(uint64_t));
-    tot_write *= 10000;
     uint64_t tot_write_req = fc->ssd->tot_write_req;
-    uint64_t waf = tot_write / tot_write_req;
+    double waf = ((double)tot_write) / tot_write_req;
 
-    uint64_t hit_miss_ratio = cc->cache_hit * 10000 / (cc->cache_hit + cc->cache_miss);
+    double hit_miss_ratio = ((double)cc->cache_hit) / (cc->cache_hit + cc->cache_miss);
 
     CMMHMetadata *ret = g_new0(CMMHMetadata, 1);
-    ret->flash_io_latency = tot_lat;
-    ret->write_amplification_factor = waf;
-    ret->hit_miss_ratio = hit_miss_ratio;
+    ret->flash_io_latency = g_new0(char, 50);
+    ret->write_amplification_factor = g_new0(char, 50);
+    ret->hit_miss_ratio = g_new0(char, 50);
+    
+    sprintf(ret->flash_io_latency, 50, "%ld", tot_lat);
+    sprintf(ret->write_amplification_factor, 50, "%lf", waf);
+    sprintf(ret->hit_miss_ratio, 50, "%lf", hit_miss_ratio);
     
     return ret;
 }
