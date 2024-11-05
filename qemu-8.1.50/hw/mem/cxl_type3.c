@@ -2329,11 +2329,11 @@ void qmp_cxl_release_dynamic_capacity(const char *path,
                                      errp);
 }
 
-CMMHMetadata qmp_cxl_get_cmmh_metadata(const char *path,
+CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
                                 Error **errp)
 {
     Object *obj = object_resolve_path(path, NULL);
-    CMMHMetadata ret;
+    CMMHMetadata *ret = g_new0(CMMHMetadata, 1);
     return ret;
 }
 
