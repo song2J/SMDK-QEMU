@@ -203,6 +203,18 @@ struct ssd {
     struct write_pointer wp;
     struct line_mgmt lm;
 
+    /* Status Cnt */
+    uint32_t        read_cnt;
+    uint32_t        write_cnt;
+    uint32_t        erase_cnt;
+
+    uint64_t        tot_read_lat;
+    uint64_t        tot_write_lat;
+    uint64_t        tot_erase_lat;
+
+    uint64_t        tot_read_req;
+    uint64_t        tot_write_req;
+
     bool *dataplane_started_ptr;
 };
 

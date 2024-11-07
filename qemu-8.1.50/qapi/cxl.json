@@ -417,3 +417,28 @@
             'extents': [ 'CXLDCExtentRecord' ]
            }
 }
+
+##
+# @CMMHMetadata:
+#
+# CMMH custom
+##
+{ 'struct': 'CMMHMetadata',
+  'data': { 'flash-io-latency': 'str',
+            'write-amplification-factor': 'str',
+            'hit-miss-ratio': 'str'} }
+
+##
+# @cxl-get-cmmh-metadata:
+#
+# Command to get a hit/miss ratio of CMM-H in PMEM Mode
+#
+# @path: CXL type 3 device canonical QOM path
+#
+# CMMH custom
+##
+{ 'command': 'cxl-get-cmmh-metadata',
+  'data': { 'path': 'str'},
+  'returns': 'CMMHMetadata'
+}
+

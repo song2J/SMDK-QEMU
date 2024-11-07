@@ -828,6 +828,7 @@ static uint64_t cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_off
     CMMHCache* cache = &(ct3d->cmm_h.cache);
     uint64_t victim;
 
+    fc->tot_read_req += size/sizeof(uint64_t);
     while(size) {
         if((res = cache->read(cache, dpa_offset, &victim)) == HIT)
             continue;
@@ -869,6 +870,7 @@ static uint64_t cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_of
     CMMHCache* cache = &(ct3d->cmm_h.cache);
     uint64_t victim;
 
+    fc->tot_write_req += size/sizeof(uint64_t);
     while(size) {
         if((res = cache->write(cache, dpa_offset, &victim)) == HIT)
             continue;
@@ -2327,6 +2329,47 @@ void qmp_cxl_release_dynamic_capacity(const char *path,
     qmp_cxl_process_dynamic_capacity(path, CXL_EVENT_LOG_INFORMATIONAL,
                                      DC_EVENT_RELEASE_CAPACITY, 0, records,
                                      errp);
+}
+
+CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
+                                Error **errp)
+{
+    Object *obj = object_resolve_path(path, NULL);
+    if (!obj) {
+        error_setg(errp, "Unable to resolve path");
+        return NULL;
+    }
+    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+        error_setg(errp, "Path not point to a valid CXL type3 device");
+        return NULL;
+    }
+    CXLType3Dev *ct3d = CXL_TYPE3(obj);
+    CMMHFlashCtrl *fc = &(ct3d->cmm_h.fc);
+    CMMHCache *cc = &(ct3d->cmm_h.cache);
+
+    uint64_t tot_lat = fc->tot_read_lat \
+                        + fc->tot_write_lat\
+                        + fc->tot_erase_lat;
+    
+    uint64_t tot_write = fc->write_cnt * (fc->page_size/sizeof(uint64_t));
+    uint64_t tot_write_req = fc->tot_write_req;
+    double waf = (tot_write_req != 0)? ((double)tot_write) / tot_write_req\
+                                    : 0;
+
+    double hit_miss_ratio = (cc->cache_hit + cc->cache_miss != 0)? \
+                            ((double)cc->cache_hit) / (cc->cache_hit + cc->cache_miss)\
+                            : 0;
+
+    CMMHMetadata *ret = g_new0(CMMHMetadata, 1);
+    ret->flash_io_latency = g_new0(char, 50);
+    ret->write_amplification_factor = g_new0(char, 50);
+    ret->hit_miss_ratio = g_new0(char, 50);
+    
+    snprintf(ret->flash_io_latency, 50, "%ld", tot_lat);
+    snprintf(ret->write_amplification_factor, 50, "%lf", waf);
+    snprintf(ret->hit_miss_ratio, 50, "%lf", hit_miss_ratio);
+    
+    return ret;
 }
 
 static void ct3_class_init(ObjectClass *oc, void *data)

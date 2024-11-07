@@ -55,6 +55,7 @@ static CacheAccessResult accessCache(CMMHCache* cc, uint64_t dpa,
         if(curr->valid && curr->tag == tag) {
             curr->dirty |= if_modify;
             cachePromoteNode(cc, idx, curr);
+            cc->cache_hit ++;
             return HIT;
         }
         bef = curr;
@@ -62,10 +63,10 @@ static CacheAccessResult accessCache(CMMHCache* cc, uint64_t dpa,
     }
 
     /* CACHE MISS */
+    cc->cache_miss ++;
     *victim = get_dpa(cc, bef->tag, idx, 0);
     evict_dirty = bef->dirty;
     bef->tag = tag;
-
     curr->dirty = if_modify;
     cachePromoteNode(cc, idx, bef);
 
@@ -105,8 +106,12 @@ void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
             cache->table[i] = curr;
         }
     }
-
+    
     cache->read = cache_read;
     cache->write = cache_write;
+
+    /* STATUS INIT */
+    cache->cache_hit = 0;
+    cache->cache_miss = 0;
     cmmh_cache_log("%s, CMMH Cache initialization [FINISHED]!\n", "CACHYEE");
 }

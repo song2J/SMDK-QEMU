@@ -30,7 +30,10 @@ typedef struct CMMHCache {
 
     CacheAccessResult (*read)(struct CMMHCache *cc, uint64_t dpa, uint64_t* victim);
     CacheAccessResult (*write)(struct CMMHCache *cc, uint64_t dpa, uint64_t* victim);
-    
+
+    /* STATUS FIELD */ 
+    uint64_t cache_hit;   
+    uint64_t cache_miss;   
 } CMMHCache;
 
 extern void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits);
