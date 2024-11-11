@@ -1008,6 +1008,9 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         ct3d->cxl_dstate.pmem_size = memory_region_size(pmr);
         ct3d->cxl_dstate.static_mem_size += memory_region_size(pmr);
         g_free(p_name);
+        
+        if(ct3d->is_cmmh)
+            cmmh_ctrl_init(ct3d);
     }
 
     if (ct3d->hostcmmh) {
@@ -1441,7 +1444,7 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
         return MEMTX_OK;
     }
 
-    if(ct3d->hostcmmh) {
+    if(ct3d->hostcmmh || (ct3d->hostpmem && ct3d->is_cmmh)) {
         /* TODO: save latency info */
         uint64_t lat = cmm_h_read(ct3d, as, dpa_offset, attrs, data, size);
     }
@@ -1473,7 +1476,7 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
         return MEMTX_OK;
     }
     
-    if(ct3d->hostcmmh) {
+    if(ct3d->hostcmmh || (ct3d->hostpmem && ct3d->is_cmmh)) {
         uint64_t lat = cmm_h_write(ct3d, as, dpa_offset, attrs, data, size);
     }
 
@@ -1545,6 +1548,9 @@ static Property ct3_props[] = {
     /* Cache props */
     DEFINE_PROP_INT32("cache_index_bits", CXLType3Dev, cmm_h.cache.index_bits, 20),
     DEFINE_PROP_INT32("cache_num_tag", CXLType3Dev, cmm_h.cache.num_tag, 16),
+
+    /* IS PMEM*/
+    DEFINE_PROP_UINT8("is_cmmh", CXLType3Dev, is_cmmh, 0);
  
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -2353,8 +2359,7 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     
     uint64_t tot_write = fc->write_cnt * (fc->page_size/sizeof(uint64_t));
     uint64_t tot_write_req = fc->tot_write_req;
-    double waf = (tot_write_req != 0)? ((double)tot_write) / tot_write_req\
-                                    : 0;
+    double waf = (tot_write_req != 0)? ((double)tot_write) / tot_write_req: 0;
 
     double hit_miss_ratio = (cc->cache_hit + cc->cache_miss != 0)? \
                             ((double)cc->cache_hit) / (cc->cache_hit + cc->cache_miss)\
