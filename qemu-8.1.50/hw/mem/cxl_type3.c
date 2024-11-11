@@ -1550,7 +1550,7 @@ static Property ct3_props[] = {
     DEFINE_PROP_INT32("cache_num_tag", CXLType3Dev, cmm_h.cache.num_tag, 16),
 
     /* IS PMEM*/
-    DEFINE_PROP_UINT8("is_cmmh", CXLType3Dev, is_cmmh, 0);
+    DEFINE_PROP_UINT8("is_cmmh", CXLType3Dev, is_cmmh, 0),
  
     DEFINE_PROP_END_OF_LIST(),
 };
