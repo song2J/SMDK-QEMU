@@ -985,6 +985,8 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         ct3d->cxl_dstate.vmem_size = memory_region_size(vmr);
         ct3d->cxl_dstate.static_mem_size += memory_region_size(vmr);
         g_free(v_name);
+        if(ct3d->is_cmmh)
+            cmmh_ctrl_init(ct3d);
     }
 
     if (ct3d->hostpmem) {
@@ -1009,8 +1011,6 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         ct3d->cxl_dstate.static_mem_size += memory_region_size(pmr);
         g_free(p_name);
         
-        if(ct3d->is_cmmh)
-            cmmh_ctrl_init(ct3d);
     }
 
     if (ct3d->hostcmmh) {
@@ -1444,7 +1444,7 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
         return MEMTX_OK;
     }
 
-    if(ct3d->hostcmmh || (ct3d->hostpmem && ct3d->is_cmmh)) {
+    if(ct3d->hostcmmh || (ct3d->hostvmem && ct3d->is_cmmh)) {
         /* TODO: save latency info */
         uint64_t lat = cmm_h_read(ct3d, as, dpa_offset, attrs, data, size);
     }
@@ -1476,7 +1476,7 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
         return MEMTX_OK;
     }
     
-    if(ct3d->hostcmmh || (ct3d->hostpmem && ct3d->is_cmmh)) {
+    if(ct3d->hostcmmh || (ct3d->hostvmem && ct3d->is_cmmh)) {
         uint64_t lat = cmm_h_write(ct3d, as, dpa_offset, attrs, data, size);
     }
 
