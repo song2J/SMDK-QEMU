@@ -893,7 +893,7 @@ static bool bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write
     struct ssd *ssd = n->ssd;
     CMMHFlashRequest req;
     bbssd_cmd_to_req(lba, size, is_write, &req);
-    uint32_t ret;
+    bool ret;
     switch (req.opcode) {
     case CMMH_FLASH_CMD_WRITE:
         cmmh_ftl_log("CMMH: cmm_flash SSD_WRITE\n");

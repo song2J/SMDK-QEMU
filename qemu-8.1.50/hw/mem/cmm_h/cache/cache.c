@@ -25,6 +25,9 @@ static inline uint64_t get_dpa(CMMHCache *cc, uint64_t tag, uint64_t idx, uint64
 
 static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
 {
+    if(cc->table[idx] == curr)
+        return;
+
     CacheNode *prev = curr->prev;
     CacheNode *next = curr->next;
 
@@ -34,12 +37,10 @@ static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
     if(next)
         next->prev = prev;
 
-    CacheNode **head = &(cc->table[idx]);
-
-    curr->next = *head;
+    curr->next = cc->table[idx];
     curr->next->prev = curr;
     curr->prev = NULL;
-    *head = curr;
+    cc->table[idx] = curr;
 }
 
 /*
@@ -60,7 +61,7 @@ static CacheNode* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
         if(curr->valid && curr->tag == tag) {
             cachePromoteNode(cc, idx, curr);
             cc->cache_hit ++;
-            cmmh_cache_log("%s, cmmh cache access [Returned] at [%x]!\n", "cache", dpa);
+            cmmh_cache_log("%s, HIT cmmh cache access [Returned] at [%x]! tag: %x index: %x\n", "cache", dpa, tag, idx);
             return curr;
         }
         bef = curr;
@@ -70,7 +71,7 @@ static CacheNode* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
     /* CACHE MISS */
     cc->cache_miss++;
     *victim = get_dpa(cc, bef->tag, idx, 0);
-    cmmh_cache_log("%s, cmmh cache access [Returned] at [%x]!\n", "cache", dpa);
+    cmmh_cache_log("%s, MISS victim: %x cmmh cache access [Returned] at [%x]! tag: %x index: %x\n", "cache", *victim, dpa, tag, idx);
     return bef;
 }
 

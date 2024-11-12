@@ -29,7 +29,7 @@ typedef struct CMMHCache {
     CacheNode **table;
 
     CacheNode* (*access)(struct CMMHCache *cc, uint64_t dpa, uint64_t* victim);
-    CacheNode* (*modify)(struct CMMHCache *cc, CacheNode *cn);
+    void (*modify)(struct CMMHCache *cc, CacheNode *cn);
     void (*fill)(struct CMMHCache *cc, CacheNode *cn, uint64_t dpa);
 
     /* STATUS FIELD */ 
