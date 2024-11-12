@@ -820,24 +820,36 @@ static void cmmh_ctrl_init(CXLType3Dev *ct3d)
 static uint64_t cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
                             uint64_t* data, unsigned size)
 {
-    CacheAccessResult res;
     uint64_t lat = 0;
     CMMHFlashCtrl* fc = &(ct3d->cmm_h.fc);
     CMMHCache* cache = &(ct3d->cmm_h.cache);
-    uint64_t victim;
+    uint64_t victim = UINT64_MAX;
+
+    CacheNode* res;
 
     fc->tot_read_req += size/sizeof(uint64_t);
     while(size) {
-        if((res = cache->read(cache, dpa_offset, &victim)) == HIT)
-            continue;
-        
-        if(res == MISS_DIRTY)
-            lat += fc->flash_ops.ftl_io(fc, (victim / fc->page_size * fc->bb_params.secs_per_pg), 
-                                                fc->page_size / fc->bb_params.secsz, true);
+        res = cache->access(cache, dpa_offset, &victim);
 
-        lat += fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
-                                                fc->page_size / fc->bb_params.secsz, false);
+        /* Is the entry HIT? */
+        if(victim == UINT64_MAX) {
+            size -= sizeof(uint64_t);
+            dpa_offset += sizeof(uint64_t);
+            continue;
+        }
+        
+        /* Is there a requested entry inside a Flash? Then, Fill the cache with it */
+        if(fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
+                                                fc->page_size / fc->bb_params.secsz, false)) {
+            /* Flush phase: Is the evicted data dirty? */
+            if(res->valid && res->dirty)
+                fc->flash_ops.ftl_io(fc, (victim / fc->page_size * fc->bb_params.secs_per_pg), 
+                                                fc->page_size / fc->bb_params.secsz, true);
+            cache->fill(cache, res, dpa_offset);
+        }
+
         size -= sizeof(uint64_t);
+        dpa_offset += sizeof(uint64_t);
     }
     return lat;
 }
@@ -855,24 +867,38 @@ static uint64_t cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_of
                     Fill cache if valid
                 return latency
     */
-    CacheAccessResult res;
     uint64_t lat = 0;
     CMMHFlashCtrl* fc = &(ct3d->cmm_h.fc);
     CMMHCache* cache = &(ct3d->cmm_h.cache);
-    uint64_t victim;
+    uint64_t victim = UINT64_MAX;
 
-    fc->tot_write_req += size/sizeof(uint64_t);
+    CacheNode* res;
+
+    fc->tot_read_req += size/sizeof(uint64_t);
     while(size) {
-        if((res = cache->write(cache, dpa_offset, &victim)) == HIT)
-            continue;
-        
-        if(res == MISS_DIRTY)
-            lat += fc->flash_ops.ftl_io(fc, (victim / fc->page_size * fc->bb_params.secs_per_pg), 
-                                                fc->page_size / fc->bb_params.secsz, true);
+        res = cache->access(cache, dpa_offset, &victim);
 
-        lat += fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
-                                                fc->page_size / fc->bb_params.secsz, false);
+        /* Is the entry HIT? */
+        if(victim == UINT64_MAX) {
+            cache->modify(cache, res);
+            size -= sizeof(uint64_t);
+            dpa_offset += sizeof(uint64_t);
+            continue;
+        }
+        
+        /* Flush phase: Is the evicted data dirty? */
+        if(res->valid && res->dirty)
+            fc->flash_ops.ftl_io(fc, (victim / fc->page_size * fc->bb_params.secs_per_pg), 
+                                            fc->page_size / fc->bb_params.secsz, true);
+
+        /* Is there a requested entry inside a Flash? (Not affect the cache work flow) */
+        fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
+                                                fc->page_size / fc->bb_params.secsz, false)
+        cache->fill(cache, res, dpa_offset);
+        cache->modify(cache, res);
+
         size -= sizeof(uint64_t);
+        dpa_offset += sizeof(uint64_t);
     }
     return lat;
 }

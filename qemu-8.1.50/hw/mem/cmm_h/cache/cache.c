@@ -42,9 +42,15 @@ static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
     *head = curr;
 }
 
-static CacheNode* cache_read(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
+/*
+    access to the proposed cache entry
+    if exist: return the pointer of the entry, victim = UINT64_MAX
+    else:   return the pointer of the victim entry(LRU rule), victim = (dpa of the entry)
+*/
+
+static CacheNode* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
-    cmmh_cache_log("%s, CMMH Cache read [Entered]!\n", "CACHE");
+    cmmh_cache_log("%s, CMMH Cache access [Entered]!\n", "CACHE");
     uint64_t tag = getCacheTag(cc, dpa);
     uint64_t idx = getCacheIdx(cc, dpa);
     
@@ -54,7 +60,7 @@ static CacheNode* cache_read(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
         if(curr->valid && curr->tag == tag) {
             cachePromoteNode(cc, idx, curr);
             cc->cache_hit ++;
-            return curr;
+            return NULL;
         }
         bef = curr;
         curr = curr->next;
@@ -66,30 +72,22 @@ static CacheNode* cache_read(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
     return bef;
 }
 
-static CacheNode* cache_write(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
-{
-    cmmh_cache_log("%s, CMMH Cache write [Entered]!\n", "CACHE");
-    uint64_t tag = getCacheTag(cc, dpa);
-    uint64_t idx = getCacheIdx(cc, dpa);
-    
-    CacheNode *curr = cc->table[idx];
-    CacheNode *bef;
-    while(curr) {
-        if(curr->valid && curr->tag == tag) {
-            curr->dirty = true;
-            cachePromoteNode(cc, idx, curr);
-            cc->cache_hit ++;
-            return curr;
-        }
-        bef = curr;
-        curr = curr->next;
-    }
+/*
+    Modify the given entry; set difty flag
+*/
 
-    /* CACHE MISS */
-    cc->cache_miss++;
-    *victim = get_dpa(cc, bef->tag, idx, 0);
-    return bef;
+static void cache_modify(CMMHCache* cc, CacheNode* cn)
+{
+    cmmh_cache_log("%s, CMMH Cache modify [Entered]!\n", "CACHE");
+    cn->dirty = true;
 }
+
+/*
+    Fill the cache with the given dpa
+    Promote the node(LRU rule)
+    set valid, unset dirty
+    set tag corr.to given dpa
+*/
 
 static void cache_fill(CMMHCache* cc, CacheNode* cn, uint64_t dpa)
 {
@@ -97,8 +95,8 @@ static void cache_fill(CMMHCache* cc, CacheNode* cn, uint64_t dpa)
     uint64_t idx = getCacheIdx(cc, dpa);
 
     cachePromoteNode(cc, idx, cn);
-    cn->dirty = false;
     cn->valid = true;
+    cn->dirty = false;
     cn->tag = tag;
 }
 
@@ -124,8 +122,8 @@ void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
         }
     }
     
-    cache->read = cache_read;
-    cache->write = cache_write;
+    cache->access = cache_access;
+    cache->modify = cache_modify;
     cache->fill = cache_fill;
 
     /* STATUS INIT */
