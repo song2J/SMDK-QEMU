@@ -865,7 +865,6 @@ static void cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset
                     Fill cache if valid
                 return latency
     */
-    uint64_t lat = 0;
     CMMHFlashCtrl* fc = &(ct3d->cmm_h.fc);
     CMMHCache* cache = &(ct3d->cmm_h.cache);
     uint64_t victim = UINT64_MAX;

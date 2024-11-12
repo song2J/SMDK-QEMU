@@ -60,6 +60,7 @@ static CacheNode* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
         if(curr->valid && curr->tag == tag) {
             cachePromoteNode(cc, idx, curr);
             cc->cache_hit ++;
+            cmmh_cache_log("%s, cmmh cache access [Returned] at [%x]!\n", "cache", dpa);
             return curr;
         }
         bef = curr;
