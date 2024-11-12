@@ -50,7 +50,7 @@ static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
 
 static CacheNode* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
-    cmmh_cache_log("%s, CMMH Cache access [Entered]!\n", "CACHE");
+    cmmh_cache_log("%s, CMMH Cache access [Entered] at [%x]!\n", "CACHE", dpa);
     uint64_t tag = getCacheTag(cc, dpa);
     uint64_t idx = getCacheIdx(cc, dpa);
     
@@ -118,6 +118,7 @@ void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
             if(cache->table[i] != NULL)
                 cache->table[i]->prev = curr;
             curr->next = cache->table[i];
+            curr->prev = NULL;
             cache->table[i] = curr;
         }
     }
