@@ -809,14 +809,12 @@ static void cmmh_ctrl_init(CXLType3Dev *ct3d)
 /* 
     Implement Cache file 
     Accumulate latency info / cache hit rate
-    if hit: updatr LRU then return 0
+    if hit: update LRU then return 0
     if miss:
         select victim
-        flash write if dirty 
+            flash write if dirty 
         flash read
-        init cache
-        write cache
-        update LRU
+            Fill cache if flash valid
         return latency
 */
 static uint64_t cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
@@ -847,21 +845,14 @@ static uint64_t cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_of
                             uint64_t data, unsigned size)
 {
     /* 
-        TODO:
         Implement Cache file 
         Accumulate latency info / cache hit rate
-        if hit: 
-                dirty = 1
-                update LRU
-                return 0
+        if hit: update LRU then return 0
         if miss: 
                 select victim
-                flash write if dirty
+                    flash write if dirty
                 flash read
-                init cache
-                write cache 
-                update LRU
-                dirty = 1
+                    Fill cache if valid
                 return latency
     */
     CacheAccessResult res;

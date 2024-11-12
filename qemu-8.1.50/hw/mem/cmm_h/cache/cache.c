@@ -42,54 +42,69 @@ static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheNode *curr)
     *head = curr;
 }
 
-static CacheAccessResult accessCache(CMMHCache* cc, uint64_t dpa, 
-                bool if_modify, uint64_t *victim)
+static CacheNode* cache_read(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
+    cmmh_cache_log("%s, CMMH Cache read [Entered]!\n", "CACHE");
     uint64_t tag = getCacheTag(cc, dpa);
     uint64_t idx = getCacheIdx(cc, dpa);
-    bool evict_dirty;
     
     CacheNode *curr = cc->table[idx];
     CacheNode *bef;
     while(curr) {
         if(curr->valid && curr->tag == tag) {
-            curr->dirty |= if_modify;
             cachePromoteNode(cc, idx, curr);
             cc->cache_hit ++;
-            return HIT;
+            return curr;
         }
         bef = curr;
         curr = curr->next;
     }
 
     /* CACHE MISS */
-    cc->cache_miss ++;
+    cc->cache_miss++;
     *victim = get_dpa(cc, bef->tag, idx, 0);
-    evict_dirty = bef->dirty;
-    bef->tag = tag;
-    curr->dirty = if_modify;
-    cachePromoteNode(cc, idx, bef);
-
-    return evict_dirty ? MISS_DIRTY : MISS_CLEAN;
+    return bef;
 }
 
-static CacheAccessResult cache_read(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
+static CacheNode* cache_write(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
-    cmmh_cache_log("%s, CMMH Cache read [Entered]!\n", "CACHYEE");
-    CacheAccessResult ret = accessCache(cc, dpa, false, victim);
-    cmmh_cache_log("%s, CMMH Cache read [FINISHED]!\n", "CACHYEE");
+    cmmh_cache_log("%s, CMMH Cache write [Entered]!\n", "CACHE");
+    uint64_t tag = getCacheTag(cc, dpa);
+    uint64_t idx = getCacheIdx(cc, dpa);
+    
+    CacheNode *curr = cc->table[idx];
+    CacheNode *bef;
+    while(curr) {
+        if(curr->valid && curr->tag == tag) {
+            curr->dirty = true;
+            cachePromoteNode(cc, idx, curr);
+            cc->cache_hit ++;
+            return curr;
+        }
+        bef = curr;
+        curr = curr->next;
+    }
+
+    /* CACHE MISS */
+    cc->cache_miss++;
+    *victim = get_dpa(cc, bef->tag, idx, 0);
+    return bef;
 }
 
-static CacheAccessResult cache_write(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
+static void cache_fill(CMMHCache* cc, CacheNode* cn, uint64_t dpa)
 {
-    cmmh_cache_log("%s, CMMH Cache write [Entered]!\n", "CACHYEE");
-    return accessCache(cc, dpa, true, victim);
-    cmmh_cache_log("%s, CMMH Cache write [FINISHED]!\n", "CACHYEE");
+    uint64_t tag = getCacheTag(cc, dpa);
+    uint64_t idx = getCacheIdx(cc, dpa);
+
+    cachePromoteNode(cc, idx, cn);
+    cn->dirty = false;
+    cn->valid = true;
+    cn->tag = tag;
 }
 
 void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
 {
-    cmmh_cache_log("%s, CMMH Cache initialization [Entered]!\n", "CACHYEE");
+    //cmmh_cache_log("%s, CMMH Cache initialization [Entered]!\n", "CACHYEE");
     /* Currently single NAND Flash page size */
     cache->line_bits = pg_bits;
     int index_bits  = cache->index_bits;
@@ -100,6 +115,8 @@ void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
         cache->table[i] = NULL;
         for(int j = 0; j < num_tag; j++) {
             CacheNode* curr = g_malloc0(sizeof(CacheNode));
+            curr->dirty = false;
+            curr->valid = false;
             if(cache->table[i] != NULL)
                 cache->table[i]->prev = curr;
             curr->next = cache->table[i];
@@ -109,9 +126,10 @@ void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
     
     cache->read = cache_read;
     cache->write = cache_write;
+    cache->fill = cache_fill;
 
     /* STATUS INIT */
     cache->cache_hit = 0;
     cache->cache_miss = 0;
-    cmmh_cache_log("%s, CMMH Cache initialization [FINISHED]!\n", "CACHYEE");
+    //cmmh_cache_log("%s, CMMH Cache initialization [FINISHED]!\n", "CACHYEE");
 }
