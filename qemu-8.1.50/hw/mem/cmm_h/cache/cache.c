@@ -69,6 +69,7 @@ static CacheNode* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
     /* CACHE MISS */
     cc->cache_miss++;
     *victim = get_dpa(cc, bef->tag, idx, 0);
+    cmmh_cache_log("%s, cmmh cache access [Returned] at [%x]!\n", "cache", dpa);
     return bef;
 }
 
@@ -91,6 +92,7 @@ static void cache_modify(CMMHCache* cc, CacheNode* cn)
 
 static void cache_fill(CMMHCache* cc, CacheNode* cn, uint64_t dpa)
 {
+    cmmh_cache_log("%s, CMMH Cache fill [Entered] at [%x]!\n", "CACHE", dpa);
     uint64_t tag = getCacheTag(cc, dpa);
     uint64_t idx = getCacheIdx(cc, dpa);
 
