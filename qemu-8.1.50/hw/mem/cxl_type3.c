@@ -817,10 +817,9 @@ static void cmmh_ctrl_init(CXLType3Dev *ct3d)
             Fill cache if flash valid
         return latency
 */
-static uint64_t cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
+static void cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
                             uint64_t* data, unsigned size)
 {
-    uint64_t lat = 0;
     CMMHFlashCtrl* fc = &(ct3d->cmm_h.fc);
     CMMHCache* cache = &(ct3d->cmm_h.cache);
     uint64_t victim = UINT64_MAX;
@@ -851,9 +850,8 @@ static uint64_t cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_off
         size -= sizeof(uint64_t);
         dpa_offset += sizeof(uint64_t);
     }
-    return lat;
 }
-static uint64_t cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
+static void cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
                             uint64_t data, unsigned size)
 {
     /* 
@@ -893,14 +891,13 @@ static uint64_t cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_of
 
         /* Is there a requested entry inside a Flash? (Not affect the cache work flow) */
         fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
-                                                fc->page_size / fc->bb_params.secsz, false)
+                                                fc->page_size / fc->bb_params.secsz, false);
         cache->fill(cache, res, dpa_offset);
         cache->modify(cache, res);
 
         size -= sizeof(uint64_t);
         dpa_offset += sizeof(uint64_t);
     }
-    return lat;
 }
 
 /*
@@ -1463,7 +1460,7 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
 
     if(ct3d->hostcmmh || (ct3d->hostvmem && ct3d->is_cmmh)) {
         /* TODO: save latency info */
-        uint64_t lat = cmm_h_read(ct3d, as, dpa_offset, attrs, data, size);
+        cmm_h_read(ct3d, as, dpa_offset, attrs, data, size);
     }
 
     return address_space_read(as, dpa_offset, attrs, data, size);
@@ -1494,7 +1491,7 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
     }
     
     if(ct3d->hostcmmh || (ct3d->hostvmem && ct3d->is_cmmh)) {
-        uint64_t lat = cmm_h_write(ct3d, as, dpa_offset, attrs, data, size);
+        cmm_h_write(ct3d, as, dpa_offset, attrs, data, size);
     }
 
     return address_space_write(as, dpa_offset, attrs, &data, size);
