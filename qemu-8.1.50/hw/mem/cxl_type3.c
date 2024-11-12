@@ -871,7 +871,7 @@ static void cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset
 
     CacheNode* res;
 
-    fc->tot_read_req += size/sizeof(uint64_t);
+    fc->tot_write_req += size/sizeof(uint64_t);
     while(size) {
         res = cache->access(cache, dpa_offset, &victim);
 
