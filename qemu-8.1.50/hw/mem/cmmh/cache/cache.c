@@ -106,7 +106,7 @@ static void cache_fill(CMMHCache* cc, CacheNode* cn, uint64_t dpa)
 
 void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
 {
-    //cmmh_cache_log("%s, CMMH Cache initialization [Entered]!\n", "CACHYEE");
+    cmmh_cache_log("%s, CMMH Cache initialization [Entered]!\n", "CACHYEE");
     /* Currently single NAND Flash page size */
     cache->line_bits = pg_bits;
     int index_bits  = cache->index_bits;

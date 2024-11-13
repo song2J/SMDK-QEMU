@@ -202,7 +202,7 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
         }
         len += CT3_CDAT_NUM_ENTRIES;
         //pmr_size = nonvolatile_mr->size;
-        cmr_size = volatile_mr->size;
+        cmr_size = cmmh_mr->size;
     }
 
     if (ct3d->dc.num_regions) {
