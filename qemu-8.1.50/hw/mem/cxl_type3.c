@@ -197,7 +197,7 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
 
     if (ct3d->hostcmmh) {
         cmmh_mr = host_memory_backend_get_memory(ct3d->hostcmmh);
-        if (!volatile_mr) {
+        if (!cmmh_mr) {
             return -EINVAL;
         }
         len += CT3_CDAT_NUM_ENTRIES;
@@ -242,10 +242,10 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     }
     
     if (cmmh_mr) {
-        rc = ct3_build_cdat_entries_for_mr(table, dsmad_handle++, cmr_size,
+        rc = ct3_build_cdat_entries_for_mr(&(table[cur_ent]), dsmad_handle++, cmr_size,
                                            false, false, 0);
         if (rc < 0) {
-            return rc;
+            goto error_cleanup;
         }
         cur_ent += CT3_CDAT_NUM_ENTRIES;
     }
@@ -983,7 +983,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         ct3d->hostmem = NULL;
     }
 
-    if ((ct3d->hostpmem || ct3d->hostcmmh) && !ct3d->lsa) {
+    if ((ct3d->hostpmem) && !ct3d->lsa) {
         error_setg(errp, "lsa property must be set for persistent devices");
         return false;
     }
@@ -1009,8 +1009,6 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         ct3d->cxl_dstate.vmem_size = memory_region_size(vmr);
         ct3d->cxl_dstate.static_mem_size += memory_region_size(vmr);
         g_free(v_name);
-        if(ct3d->is_cmmh)
-            cmmh_ctrl_init(ct3d);
     }
 
     if (ct3d->hostpmem) {

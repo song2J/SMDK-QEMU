@@ -1,7 +1,7 @@
 #ifndef __CMMH_FTL_H
 #define __CMMH_FTL_H
 
-#include "../cmm_h.h"
+#include "../cmmh.h"
 
 #define INVALID_PPA     (~(0ULL))
 #define INVALID_LPN     (~(0ULL))
