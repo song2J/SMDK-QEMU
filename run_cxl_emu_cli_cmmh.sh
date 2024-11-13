@@ -17,8 +17,8 @@ nchs=8 # number of channels
 ssd_size=12288 # in megabytes, if you change the above layout parameters, make sure you manually recalculate the ssd size and modify it here, please consider a default 25% overprovisioning ratio.
 # Configure Cache
 # calculate cache size by parameters above
-cache_index_bits=12
-cache_num_tag=16
+cache_index_bits=8
+cache_num_tag=8
 
 # Latency in nanoseconds
 pg_rd_lat=40000 # page read latency
@@ -35,7 +35,7 @@ gc_thres_pcent_high=95
 #Compose the entire FEMU BBSSD command line options
 FEMU_OPTIONS="-device cxl-type3"
 FEMU_OPTIONS=${FEMU_OPTIONS}",bus=root_port13"
-FEMU_OPTIONS=${FEMU_OPTIONS}",volatile-memdev=cmmh0"
+FEMU_OPTIONS=${FEMU_OPTIONS}",cmm-hybrid-memdev=cmmh0"
 FEMU_OPTIONS=${FEMU_OPTIONS}",is_cmmh=1"
 #FEMU_OPTIONS=${FEMU_OPTIONS}",lsa=cxl-lsa1"
 FEMU_OPTIONS=${FEMU_OPTIONS}",id=cxl-cmmh0"
@@ -86,6 +86,7 @@ sudo ${QEMU_SYSTEM_BINARY} \
     -nographic \
     -device e1000,netdev=net0 \
     -netdev user,id=net0,hostfwd=tcp::8080-:22 \
+    -qmp tcp:localhost:18080,server,nowait \
     -machine q35,cxl=on \
     -M cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=16G \
     -device pxb-cxl,bus_nr=12,bus=pcie.0,id=cxl.1 \
