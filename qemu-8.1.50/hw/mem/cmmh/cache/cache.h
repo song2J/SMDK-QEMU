@@ -28,8 +28,9 @@ typedef struct CMMHCache {
     int num_tag; // How many tags per each idx?
     CacheNode **table;
 
-    CacheAccessResult (*read)(struct CMMHCache *cc, uint64_t dpa, uint64_t* victim);
-    CacheAccessResult (*write)(struct CMMHCache *cc, uint64_t dpa, uint64_t* victim);
+    CacheNode* (*access)(struct CMMHCache *cc, uint64_t dpa, uint64_t* victim);
+    void (*modify)(struct CMMHCache *cc, CacheNode *cn);
+    void (*fill)(struct CMMHCache *cc, CacheNode *cn, uint64_t dpa);
 
     /* STATUS FIELD */ 
     uint64_t cache_hit;   
