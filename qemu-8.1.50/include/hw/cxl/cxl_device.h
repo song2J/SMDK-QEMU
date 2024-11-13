@@ -16,8 +16,8 @@
 #include "hw/cxl/cxl_events.h"
 
 #include "hw/cxl/cxl_cpmu.h"
-#include "hw/mem/cmm_h/cache/cache.h"
-#include "hw/mem/cmm_h/cmm_h.h"
+#include "hw/mem/cmmh/cache/cache.h"
+#include "hw/mem/cmmh/cmmh.h"
 /*
  * The following is how a CXL device's Memory Device registers are laid out.
  * The only requirement from the spec is that the capabilities array and the
@@ -507,7 +507,7 @@ struct CXLType3Dev {
     struct __cmm_h{
         CMMHFlashCtrl fc;
         CMMHCache cache;
-    } cmm_h;
+    } cmmh;
 };
 
 #define TYPE_CXL_TYPE3 "cxl-type3"

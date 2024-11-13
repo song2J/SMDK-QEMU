@@ -161,12 +161,13 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     g_autofree CDATSubHeader **table = NULL;
     CXLType3Dev *ct3d = priv;
     MemoryRegion *volatile_mr = NULL, *nonvolatile_mr = NULL;
+    MemoryRegion *cmmh_mr = NULL;
     MemoryRegion *dc_mr = NULL;
     int dsmad_handle = 0;
     int cur_ent = 0;
     int len = 0;
     int rc, i;
-    uint64_t vmr_size = 0, pmr_size = 0;
+    uint64_t vmr_size = 0, pmr_size = 0, cmr_size=0;
 
     if (!ct3d->hostcmmh && !ct3d->hostpmem && !ct3d->hostvmem && !ct3d->dc.num_regions) {
         return 0;
@@ -195,12 +196,13 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     }
 
     if (ct3d->hostcmmh) {
-        nonvolatile_mr = host_memory_backend_get_memory(ct3d->hostcmmh);
-        if (!nonvolatile_mr) {
+        cmmh_mr = host_memory_backend_get_memory(ct3d->hostcmmh);
+        if (!volatile_mr) {
             return -EINVAL;
         }
         len += CT3_CDAT_NUM_ENTRIES;
-        pmr_size = nonvolatile_mr->size;
+        //pmr_size = nonvolatile_mr->size;
+        cmr_size = volatile_mr->size;
     }
 
     if (ct3d->dc.num_regions) {
@@ -238,9 +240,18 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
         }
         cur_ent += CT3_CDAT_NUM_ENTRIES;
     }
+    
+    if (cmmh_mr) {
+        rc = ct3_build_cdat_entries_for_mr(table, dsmad_handle++, cmr_size,
+                                           false, false, 0);
+        if (rc < 0) {
+            return rc;
+        }
+        cur_ent += CT3_CDAT_NUM_ENTRIES;
+    }
 
     if (dc_mr) {
-        uint64_t region_base = vmr_size + pmr_size;
+        uint64_t region_base = vmr_size + pmr_size + cmr_size;
 
         /*
          * Currently we create cdat entries for each region, should we only
@@ -799,11 +810,11 @@ static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
 static void cmmh_ctrl_init(CXLType3Dev *ct3d)
 {
     //flash init
-    cmmh_register_bb_flash_ops(&(ct3d->cmm_h.fc));
-    ct3d->cmm_h.fc.flash_ops.init(&(ct3d->cmm_h.fc));
+    cmmh_register_bb_flash_ops(&(ct3d->cmmh.fc));
+    ct3d->cmmh.fc.flash_ops.init(&(ct3d->cmmh.fc));
 
     //cache init
-    cmmh_cache_init(&(ct3d->cmm_h.cache), ct3d->cmm_h.fc.page_bits);
+    cmmh_cache_init(&(ct3d->cmmh.cache), ct3d->cmmh.fc.page_bits);
 }
 
 /* 
@@ -817,11 +828,11 @@ static void cmmh_ctrl_init(CXLType3Dev *ct3d)
             Fill cache if flash valid
         return latency
 */
-static void cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
+static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
                             uint64_t* data, unsigned size)
 {
-    CMMHFlashCtrl* fc = &(ct3d->cmm_h.fc);
-    CMMHCache* cache = &(ct3d->cmm_h.cache);
+    CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
+    CMMHCache* cache = &(ct3d->cmmh.cache);
     uint64_t victim = UINT64_MAX;
 
     CacheNode* res;
@@ -851,7 +862,7 @@ static void cmm_h_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
         dpa_offset += sizeof(uint64_t);
     }
 }
-static void cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
+static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
                             uint64_t data, unsigned size)
 {
     /* 
@@ -865,8 +876,8 @@ static void cmm_h_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset
                     Fill cache if valid
                 return latency
     */
-    CMMHFlashCtrl* fc = &(ct3d->cmm_h.fc);
-    CMMHCache* cache = &(ct3d->cmm_h.cache);
+    CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
+    CMMHCache* cache = &(ct3d->cmmh.cache);
     uint64_t victim = UINT64_MAX;
 
     CacheNode* res;
@@ -1044,7 +1055,9 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
             p_name = g_strdup("cxl-type3-dpa-cmmh-space");
         }
         address_space_init(&ct3d->hostcmmh_as, pmr, p_name);
-        ct3d->cxl_dstate.pmem_size = memory_region_size(pmr);
+        //ct3d->cxl_dstate.pmem_size = memory_region_size(pmr);
+        /* CMMH Volatile */
+        ct3d->cxl_dstate.vmem_size = memory_region_size(pmr);
         ct3d->cxl_dstate.static_mem_size += memory_region_size(pmr);
         g_free(p_name);
 
@@ -1457,9 +1470,9 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
         return MEMTX_OK;
     }
 
-    if(ct3d->hostcmmh || (ct3d->hostvmem && ct3d->is_cmmh)) {
+    if(ct3d->hostcmmh) {
         /* TODO: save latency info */
-        cmm_h_read(ct3d, as, dpa_offset, attrs, data, size);
+        cmmh_read(ct3d, as, dpa_offset, attrs, data, size);
     }
 
     return address_space_read(as, dpa_offset, attrs, data, size);
@@ -1489,8 +1502,8 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
         return MEMTX_OK;
     }
     
-    if(ct3d->hostcmmh || (ct3d->hostvmem && ct3d->is_cmmh)) {
-        cmm_h_write(ct3d, as, dpa_offset, attrs, data, size);
+    if(ct3d->hostcmmh) {
+        cmmh_write(ct3d, as, dpa_offset, attrs, data, size);
     }
 
     return address_space_write(as, dpa_offset, attrs, &data, size);
@@ -1535,32 +1548,32 @@ static Property ct3_props[] = {
                     TYPE_MEMORY_BACKEND, HostMemoryBackend *),
 
     /*FemuCtrl*/
-    DEFINE_PROP_UINT8("enable_gc_delay", CXLType3Dev, cmm_h.fc.enable_gc_delay, 0),
-    DEFINE_PROP_UINT8("enable_delay_emu", CXLType3Dev, cmm_h.fc.enable_delay_emu, 1),
-    DEFINE_PROP_STRING("serial", CXLType3Dev, cmm_h.fc.serial),
-    DEFINE_PROP_UINT32("devsz_mb", CXLType3Dev, cmm_h.fc.memsz, 1024), /* in MB */
-    DEFINE_PROP_UINT32("namespaces", CXLType3Dev, cmm_h.fc.num_namespaces, 1),
-    DEFINE_PROP_UINT8("lba_index", CXLType3Dev, cmm_h.fc.lba_index, 0),
-    DEFINE_PROP_UINT16("vid", CXLType3Dev, cmm_h.fc.vid, 0x1d1d),
-    DEFINE_PROP_UINT16("did", CXLType3Dev, cmm_h.fc.did, 0x1f1f),
-    //DEFINE_PROP_UINT8("flash_type", CXLType3Dev, cmm_h.fc.flash_type, MLC),
-    DEFINE_PROP_INT32("secsz", CXLType3Dev, cmm_h.fc.bb_params.secsz, 512),
-    DEFINE_PROP_INT32("secs_per_pg", CXLType3Dev, cmm_h.fc.bb_params.secs_per_pg, 8),
-    DEFINE_PROP_INT32("pgs_per_blk", CXLType3Dev, cmm_h.fc.bb_params.pgs_per_blk, 256),
-    DEFINE_PROP_INT32("blks_per_pl", CXLType3Dev, cmm_h.fc.bb_params.blks_per_pl, 256),
-    DEFINE_PROP_INT32("pls_per_lun", CXLType3Dev, cmm_h.fc.bb_params.pls_per_lun, 1),
-    DEFINE_PROP_INT32("luns_per_ch", CXLType3Dev, cmm_h.fc.bb_params.luns_per_ch, 8),
-    DEFINE_PROP_INT32("nchs", CXLType3Dev, cmm_h.fc.bb_params.nchs, 8),
-    DEFINE_PROP_INT32("pg_rd_lat", CXLType3Dev, cmm_h.fc.bb_params.pg_rd_lat, 40000),
-    DEFINE_PROP_INT32("pg_wr_lat", CXLType3Dev, cmm_h.fc.bb_params.pg_wr_lat, 200000),
-    DEFINE_PROP_INT32("blk_er_lat", CXLType3Dev, cmm_h.fc.bb_params.blk_er_lat, 2000000),
-    DEFINE_PROP_INT32("ch_xfer_lat", CXLType3Dev, cmm_h.fc.bb_params.ch_xfer_lat, 0),
-    DEFINE_PROP_INT32("gc_thres_pcent", CXLType3Dev, cmm_h.fc.bb_params.gc_thres_pcent, 75),
-    DEFINE_PROP_INT32("gc_thres_pcent_high", CXLType3Dev, cmm_h.fc.bb_params.gc_thres_pcent_high, 95),
+    DEFINE_PROP_UINT8("enable_gc_delay", CXLType3Dev, cmmh.fc.enable_gc_delay, 0),
+    DEFINE_PROP_UINT8("enable_delay_emu", CXLType3Dev, cmmh.fc.enable_delay_emu, 1),
+    DEFINE_PROP_STRING("serial", CXLType3Dev, cmmh.fc.serial),
+    DEFINE_PROP_UINT32("devsz_mb", CXLType3Dev, cmmh.fc.memsz, 1024), /* in MB */
+    DEFINE_PROP_UINT32("namespaces", CXLType3Dev, cmmh.fc.num_namespaces, 1),
+    DEFINE_PROP_UINT8("lba_index", CXLType3Dev, cmmh.fc.lba_index, 0),
+    DEFINE_PROP_UINT16("vid", CXLType3Dev, cmmh.fc.vid, 0x1d1d),
+    DEFINE_PROP_UINT16("did", CXLType3Dev, cmmh.fc.did, 0x1f1f),
+    //DEFINE_PROP_UINT8("flash_type", CXLType3Dev, cmmh.fc.flash_type, MLC),
+    DEFINE_PROP_INT32("secsz", CXLType3Dev, cmmh.fc.bb_params.secsz, 512),
+    DEFINE_PROP_INT32("secs_per_pg", CXLType3Dev, cmmh.fc.bb_params.secs_per_pg, 8),
+    DEFINE_PROP_INT32("pgs_per_blk", CXLType3Dev, cmmh.fc.bb_params.pgs_per_blk, 256),
+    DEFINE_PROP_INT32("blks_per_pl", CXLType3Dev, cmmh.fc.bb_params.blks_per_pl, 256),
+    DEFINE_PROP_INT32("pls_per_lun", CXLType3Dev, cmmh.fc.bb_params.pls_per_lun, 1),
+    DEFINE_PROP_INT32("luns_per_ch", CXLType3Dev, cmmh.fc.bb_params.luns_per_ch, 8),
+    DEFINE_PROP_INT32("nchs", CXLType3Dev, cmmh.fc.bb_params.nchs, 8),
+    DEFINE_PROP_INT32("pg_rd_lat", CXLType3Dev, cmmh.fc.bb_params.pg_rd_lat, 40000),
+    DEFINE_PROP_INT32("pg_wr_lat", CXLType3Dev, cmmh.fc.bb_params.pg_wr_lat, 200000),
+    DEFINE_PROP_INT32("blk_er_lat", CXLType3Dev, cmmh.fc.bb_params.blk_er_lat, 2000000),
+    DEFINE_PROP_INT32("ch_xfer_lat", CXLType3Dev, cmmh.fc.bb_params.ch_xfer_lat, 0),
+    DEFINE_PROP_INT32("gc_thres_pcent", CXLType3Dev, cmmh.fc.bb_params.gc_thres_pcent, 75),
+    DEFINE_PROP_INT32("gc_thres_pcent_high", CXLType3Dev, cmmh.fc.bb_params.gc_thres_pcent_high, 95),
 
     /* Cache props */
-    DEFINE_PROP_INT32("cache_index_bits", CXLType3Dev, cmm_h.cache.index_bits, 20),
-    DEFINE_PROP_INT32("cache_num_tag", CXLType3Dev, cmm_h.cache.num_tag, 16),
+    DEFINE_PROP_INT32("cache_index_bits", CXLType3Dev, cmmh.cache.index_bits, 20),
+    DEFINE_PROP_INT32("cache_num_tag", CXLType3Dev, cmmh.cache.num_tag, 16),
 
     /* IS PMEM*/
     DEFINE_PROP_UINT8("is_cmmh", CXLType3Dev, is_cmmh, 0),
@@ -2363,8 +2376,8 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
         return NULL;
     }
     CXLType3Dev *ct3d = CXL_TYPE3(obj);
-    CMMHFlashCtrl *fc = &(ct3d->cmm_h.fc);
-    CMMHCache *cc = &(ct3d->cmm_h.cache);
+    CMMHFlashCtrl *fc = &(ct3d->cmmh.fc);
+    CMMHCache *cc = &(ct3d->cmmh.cache);
 
     uint64_t tot_lat = fc->tot_read_lat \
                         + fc->tot_write_lat\
