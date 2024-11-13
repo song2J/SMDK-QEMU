@@ -1044,7 +1044,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
             error_setg(errp, "cmm-hybrid memdev must have backing device");
             return false;
         }
-        memory_region_set_nonvolatile(pmr, true);
+        memory_region_set_nonvolatile(pmr, false);
         memory_region_set_enabled(pmr, true);
         host_memory_backend_set_mapped(ct3d->hostcmmh, true);
         if (ds->id) {
