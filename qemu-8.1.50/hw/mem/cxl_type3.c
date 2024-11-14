@@ -833,12 +833,13 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
 {
     CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
     CMMHCache* cache = &(ct3d->cmmh.cache);
-    uint64_t victim = UINT64_MAX;
+    uint64_t victim;
 
     CacheLine* res;
 
     fc->tot_read_req += size/sizeof(uint64_t);
     while(size) {
+        victim = UINT64_MAX;
         res = cache->access(cache, dpa_offset, &victim);
 
         /* Is the entry HIT? */
@@ -878,12 +879,13 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
     */
     CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
     CMMHCache* cache = &(ct3d->cmmh.cache);
-    uint64_t victim = UINT64_MAX;
+    uint64_t victim;
 
     CacheLine* res;
 
     fc->tot_write_req += size/sizeof(uint64_t);
     while(size) {
+        victim = UINT64_MAX;
         res = cache->access(cache, dpa_offset, &victim);
 
         /* Is the entry HIT? */
