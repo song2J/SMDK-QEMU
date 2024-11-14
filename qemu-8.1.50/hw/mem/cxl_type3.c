@@ -2412,6 +2412,7 @@ void cmmh_flush_cache(CXLType3Dev *ct3d)
             uint64_t dpa = cur->dpa;
             fc->flash_ops.ftl_io(fc, (dpa / fc->page_size * fc->bb_params.secs_per_pg), 
                                             fc->page_size / fc->bb_params.secsz, true);
+            cur->dirty = false;
         }
 
         cur = cc->advance_valid_line(cc, cur);
