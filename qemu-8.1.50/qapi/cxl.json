@@ -443,7 +443,7 @@
 }
 
 ##
-# @cxl-get-cmmh-flush-cache:
+# @cxl-cmmh-flush-cache:
 #
 # Command to flush all the valid dirty data from cache to NAND Flash
 #
