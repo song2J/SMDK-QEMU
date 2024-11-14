@@ -5,7 +5,7 @@
 
 static inline uint64_t getCacheOffset(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa & ((1 << cc->line_bits) - 1));
+    return dpa % (1 << cc->line_bits);
 }
 
 static inline uint64_t getCacheTag(CMMHCache* cc, uint64_t dpa)
@@ -15,12 +15,12 @@ static inline uint64_t getCacheTag(CMMHCache* cc, uint64_t dpa)
 
 static inline uint64_t getCacheIdx(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa >> (cc->line_bits)) & ((1 << (cc->index_bits)) - 1);
+    return (dpa >> (cc->line_bits)) % (1 << (cc->index_bits)); 
 }
 
-static inline uint64_t get_dpa(CMMHCache *cc, uint64_t tag, uint64_t idx, uint64_t addr)
+static inline uint64_t get_dpa(CMMHCache *cc, uint64_t tag, uint64_t idx, uint64_t off)
 {
-    return (tag << (cc->index_bits + cc->line_bits)) + (idx << cc->line_bits) + addr;
+    return (tag << (cc->index_bits + cc->line_bits)) + (idx << cc->line_bits) + off;
 }
 
 static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheLine *curr)
