@@ -52,14 +52,14 @@ static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheLine *curr)
 static CacheLine* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
     //cmmh_cache_log("%s, CMMH Cache access [Entered] at [%x]!\n", "CACHE", dpa);
-    dpa -= getCacheOffset(dpa);
+    dpa -= getCacheOffset(cc, dpa);
     uint64_t tag = getCacheTag(cc, dpa);
     uint64_t idx = getCacheIdx(cc, dpa);
     
     CacheLine *curr = cc->table[idx];
     CacheLine *bef;
     while(curr) {
-        if(curr->valid && getCacheTag(curr->dpa) == tag) {
+        if(curr->valid && getCacheTag(cc, curr->dpa) == tag) {
             cachePromoteNode(cc, idx, curr);
             cc->cache_hit ++;
             //cmmh_cache_log("%s, HIT cmmh cache access [Returned] at [%x]! tag: %x index: %x\n", "cache", dpa, tag, idx);
@@ -71,7 +71,7 @@ static CacheLine* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 
     /* CACHE MISS */
     cc->cache_miss++;
-    *victim = bef->dpa
+    *victim = bef->dpa;
     //cmmh_cache_log("%s, MISS victim: %x cmmh cache access [Returned] at [%x]! tag: %x index: %x\n", "cache", *victim, dpa, tag, idx);
     return bef;
 }
@@ -111,7 +111,7 @@ static CacheLine *cache_advance_valid_line(CMMHCache *cc, CacheLine *cn)
         if(cn->next) { 
             ret = cn->next;
         } else {
-            int next_idx = getCacheIdx(cn->dpa) + 1;
+            int next_idx = getCacheIdx(cc, cn->dpa) + 1;
             if(next_idx == (1 << (cc->index_bits)))
                 return NULL;
             ret = cc->table[next_idx];
