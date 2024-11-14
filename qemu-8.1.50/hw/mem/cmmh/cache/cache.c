@@ -62,7 +62,7 @@ static CacheLine* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
         if(curr->valid && getCacheTag(cc, curr->dpa) == tag) {
             cachePromoteNode(cc, idx, curr);
             cc->cache_hit ++;
-            //cmmh_cache_log("%s, HIT cmmh cache access [Returned] at [%x]! tag: %x index: %x\n", "cache", dpa, tag, idx);
+            cmmh_cache_log("%s, HIT cmmh cache access [Returned] at [%x]! tag: %x index: %x\n", "cache", dpa, tag, idx);
             return curr;
         }
         bef = curr;
@@ -72,7 +72,7 @@ static CacheLine* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
     /* CACHE MISS */
     cc->cache_miss++;
     *victim = bef->dpa;
-    //cmmh_cache_log("%s, MISS victim: %x cmmh cache access [Returned] at [%x]! tag: %x index: %x\n", "cache", *victim, dpa, tag, idx);
+    cmmh_cache_log("%s, MISS victim: %x cmmh cache access [Returned] at [%x]! tag: %x index: %x\n", "cache", *victim, dpa, tag, idx);
     return bef;
 }
 
@@ -82,7 +82,7 @@ static CacheLine* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 
 static void cache_modify(CMMHCache* cc, CacheLine* cn)
 {
-    //cmmh_cache_log("%s, CMMH Cache modify [Entered]!\n", "CACHE");
+    cmmh_cache_log("%s, CMMH Cache modify [Entered]!\n", "CACHE");
     cn->dirty = true;
 }
 
@@ -95,7 +95,7 @@ static void cache_modify(CMMHCache* cc, CacheLine* cn)
 
 static void cache_fill(CMMHCache* cc, CacheLine* cn, uint64_t dpa)
 {
-    //cmmh_cache_log("%s, CMMH Cache fill [Entered] at [%x]!\n", "CACHE", dpa);
+    cmmh_cache_log("%s, CMMH Cache fill [Entered] at [%x]!\n", "CACHE", dpa);
     uint64_t idx = getCacheIdx(cc, dpa);
 
     cachePromoteNode(cc, idx, cn);
