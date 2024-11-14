@@ -952,7 +952,7 @@ static void bb_init(CMMHFlashCtrl *n)
     n->page_size = (uint16_t)(ssd->sp.secsz * ssd->sp.secs_per_pg);
     n->page_bits = 0;
     uint16_t pg_size = n->page_size;
-    while(pg_size){
+    while(pg_size > 1){
         pg_size = pg_size >> 1;
         n->page_bits++;
     }
