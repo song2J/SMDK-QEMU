@@ -51,7 +51,7 @@ static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheLine *curr)
 
 static CacheLine* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
-    cmmh_cache_log("%s, CMMH Cache access [Entered] at [%x]!\n", "CACHE", dpa);
+    cmmh_cache_log("%s, CMMH Cache access [Entered] at [%x]!\n, OFFSET=[%d]", "CACHE", dpa, getCacheOffset(cc, dpa));
     dpa -= getCacheOffset(cc, dpa);
     uint64_t tag = getCacheTag(cc, dpa);
     uint64_t idx = getCacheIdx(cc, dpa);
