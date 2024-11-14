@@ -51,7 +51,7 @@ static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheLine *curr)
 
 static CacheLine* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
-    //cmmh_cache_log("%s, CMMH Cache access [Entered] at [%x]!\n", "CACHE", dpa);
+    cmmh_cache_log("%s, CMMH Cache access [Entered] at [%x]!\n", "CACHE", dpa);
     dpa -= getCacheOffset(cc, dpa);
     uint64_t tag = getCacheTag(cc, dpa);
     uint64_t idx = getCacheIdx(cc, dpa);
@@ -62,6 +62,7 @@ static CacheLine* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
         if(curr->valid && getCacheTag(cc, curr->dpa) == tag) {
             cachePromoteNode(cc, idx, curr);
             cc->cache_hit ++;
+            *victim = UINT64_MAX;
             cmmh_cache_log("%s, HIT cmmh cache access [Returned] at [%x]! tag: %x index: %x\n", "cache", dpa, tag, idx);
             return curr;
         }
@@ -101,7 +102,7 @@ static void cache_fill(CMMHCache* cc, CacheLine* cn, uint64_t dpa)
     cachePromoteNode(cc, idx, cn);
     cn->valid = true;
     cn->dirty = false;
-    cn->dpa = dpa;
+    cn->dpa = dpa - getCacheOffset(cc, dpa);
 }
 
 static CacheLine *cache_advance_valid_line(CMMHCache *cc, CacheLine *cn)

@@ -839,7 +839,6 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
 
     while(size > 0) {
         fc->tot_write_req++;
-        victim = UINT64_MAX;
         res = cache->access(cache, dpa_offset, &victim);
 
         /* Is the entry HIT? */
@@ -885,7 +884,6 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
 
     while(size > 0) {
         fc->tot_write_req++;
-        victim = UINT64_MAX;
         res = cache->access(cache, dpa_offset, &victim);
 
         /* Is the entry HIT? */
