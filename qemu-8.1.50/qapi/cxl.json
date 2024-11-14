@@ -442,3 +442,16 @@
   'returns': 'CMMHMetadata'
 }
 
+##
+# @cxl-cmmh-flush-cache:
+#
+# Command to flush all the valid dirty data from cache to NAND Flash
+#
+# @path: CXL type 3 device canonical QOM path
+#
+# CMMH custom
+##
+{ 'command': 'cxl-cmmh-flush-cache',
+  'data': { 'path': 'str'}
+}
+

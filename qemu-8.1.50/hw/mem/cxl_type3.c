@@ -835,7 +835,7 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
     CMMHCache* cache = &(ct3d->cmmh.cache);
     uint64_t victim = UINT64_MAX;
 
-    CacheNode* res;
+    CacheLine* res;
 
     fc->tot_read_req += size/sizeof(uint64_t);
     while(size) {
@@ -880,7 +880,7 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
     CMMHCache* cache = &(ct3d->cmmh.cache);
     uint64_t victim = UINT64_MAX;
 
-    CacheNode* res;
+    CacheLine* res;
 
     fc->tot_write_req += size/sizeof(uint64_t);
     while(size) {
@@ -2401,6 +2401,40 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     return ret;
 }
 
+void cmmh_flush_cache(CXLType3Dev *ct3d)
+{
+    CMMHFlashCtrl *fc = &(ct3d->cmmh.fc);
+    CMMHCache *cc = &(ct3d->cmmh.cache);
+    
+    CacheLine *cur = cc->get_valid_head_line(cc);
+    while(cur) {
+        if(cur->dirty) {
+            uint64_t dpa = cur->dpa;
+            fc->flash_ops.ftl_io(fc, (dpa / fc->page_size * fc->bb_params.secs_per_pg), 
+                                            fc->page_size / fc->bb_params.secsz, true);
+            cur->dirty = false;
+        }
+
+        cur = cc->advance_valid_line(cc, cur);
+    }
+}
+
+void qmp_cxl_cmmh_flush_cache(const char *path,
+                                Error **errp)
+{
+    Object *obj = object_resolve_path(path, NULL);
+    if (!obj) {
+        error_setg(errp, "Unable to resolve path");
+        return NULL;
+    }
+    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+        error_setg(errp, "Path not point to a valid CXL type3 device");
+        return NULL;
+    }
+    CXLType3Dev *ct3d = CXL_TYPE3(obj);
+
+    cmmh_flush_cache(ct3d);
+}
 static void ct3_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
