@@ -837,15 +837,15 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
 
     CacheLine* res;
 
-    fc->tot_read_req += size/sizeof(uint64_t);
-    while(size) {
+    while(size > 0) {
+        fc->tot_write_req++;
         victim = UINT64_MAX;
         res = cache->access(cache, dpa_offset, &victim);
 
         /* Is the entry HIT? */
         if(victim == UINT64_MAX) {
-            size -= sizeof(uint64_t);
-            dpa_offset += sizeof(uint64_t);
+            size        -= fc->page_size - (dpa_offset % fc->page_size);
+            dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
             continue;
         }
         
@@ -859,8 +859,8 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
             cache->fill(cache, res, dpa_offset);
         }
 
-        size -= sizeof(uint64_t);
-        dpa_offset += sizeof(uint64_t);
+        size        -= fc->page_size - (dpa_offset % fc->page_size);
+        dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
     }
 }
 static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
@@ -883,16 +883,16 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
 
     CacheLine* res;
 
-    fc->tot_write_req += size/sizeof(uint64_t);
-    while(size) {
+    while(size > 0) {
+        fc->tot_write_req++;
         victim = UINT64_MAX;
         res = cache->access(cache, dpa_offset, &victim);
 
         /* Is the entry HIT? */
         if(victim == UINT64_MAX) {
             cache->modify(cache, res);
-            size -= sizeof(uint64_t);
-            dpa_offset += sizeof(uint64_t);
+            size        -= fc->page_size - (dpa_offset % fc->page_size);
+            dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
             continue;
         }
         
@@ -907,8 +907,8 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
         cache->fill(cache, res, dpa_offset);
         cache->modify(cache, res);
 
-        size -= sizeof(uint64_t);
-        dpa_offset += sizeof(uint64_t);
+        size        -= fc->page_size - (dpa_offset % fc->page_size);
+        dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
     }
 }
 
