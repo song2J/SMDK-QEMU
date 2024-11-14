@@ -442,3 +442,7 @@
   'returns': 'CMMHMetadata'
 }
 
+{ 'command': 'cxl-cmmh-flush-cache',
+  'data': { 'path': 'str'}
+}
+

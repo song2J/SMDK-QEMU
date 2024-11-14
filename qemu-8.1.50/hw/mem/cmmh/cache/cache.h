@@ -5,20 +5,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-typedef enum {
-    HIT = 0,
-    MISS_CLEAN,
-    MISS_DIRTY,
-} CacheAccessResult;
-
-typedef struct CacheNode {
-    uint64_t tag;
+typedef struct CacheLine {
+    uint64_t dpa;
     bool valid;
     bool dirty;
 
-    struct CacheNode *prev;
-    struct CacheNode *next;
-} CacheNode;
+    struct CacheLine *prev;
+    struct CacheLine *next;
+} CacheLine;
 
 typedef struct CMMHCache {
     int line_bits;
@@ -26,11 +20,14 @@ typedef struct CMMHCache {
     //int tag_bits;
 
     int num_tag; // How many tags per each idx?
-    CacheNode **table;
+    CacheLine **table;
 
-    CacheNode* (*access)(struct CMMHCache *cc, uint64_t dpa, uint64_t* victim);
-    void (*modify)(struct CMMHCache *cc, CacheNode *cn);
-    void (*fill)(struct CMMHCache *cc, CacheNode *cn, uint64_t dpa);
+    CacheLine* (*access)(struct CMMHCache *cc, uint64_t dpa, uint64_t* victim);
+    void (*modify)(struct CMMHCache *cc, CacheLine *cn);
+    void (*fill)(struct CMMHCache *cc, CacheLine *cn, uint64_t dpa);
+    void (*flush)(struct CMMHCache *cc);
+    CacheLine *(*get_valid_head_line)(struct CMMHCache *cc);
+    CacheLine *(*advance_valid_line)(struct CMMHCache *cc, CacheLine *cn);
 
     /* STATUS FIELD */ 
     uint64_t cache_hit;   
