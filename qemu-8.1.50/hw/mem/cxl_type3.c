@@ -242,8 +242,8 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     }
     
     if (cmmh_mr) {
-        rc = ct3_build_cdat_entries_for_mr(&(table[cur_ent]), dsmad_handle++, cmr_size,
-                                           false, false, 0);
+        rc = ct3_build_cdat_entries_for_mr(&(table[cur_ent]), dsmad_handle++, 
+                                           cmr_size, true, false, vmr_size);
         if (rc < 0) {
             goto error_cleanup;
         }
@@ -983,7 +983,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         ct3d->hostmem = NULL;
     }
 
-    if ((ct3d->hostpmem) && !ct3d->lsa) {
+    if ((ct3d->hostpmem || ct3d->hostcmmh) && !ct3d->lsa) {
         error_setg(errp, "lsa property must be set for persistent devices");
         return false;
     }
@@ -1044,7 +1044,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
             error_setg(errp, "cmm-hybrid memdev must have backing device");
             return false;
         }
-        memory_region_set_nonvolatile(pmr, false);
+        memory_region_set_nonvolatile(pmr, true);
         memory_region_set_enabled(pmr, true);
         host_memory_backend_set_mapped(ct3d->hostcmmh, true);
         if (ds->id) {
@@ -1055,7 +1055,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         address_space_init(&ct3d->hostcmmh_as, pmr, p_name);
         //ct3d->cxl_dstate.pmem_size = memory_region_size(pmr);
         /* CMMH Volatile */
-        ct3d->cxl_dstate.vmem_size = memory_region_size(pmr);
+        ct3d->cxl_dstate.pmem_size = memory_region_size(pmr);
         ct3d->cxl_dstate.static_mem_size += memory_region_size(pmr);
         g_free(p_name);
 
@@ -1573,9 +1573,6 @@ static Property ct3_props[] = {
     DEFINE_PROP_INT32("cache_index_bits", CXLType3Dev, cmmh.cache.index_bits, 20),
     DEFINE_PROP_INT32("cache_num_tag", CXLType3Dev, cmmh.cache.num_tag, 16),
 
-    /* IS PMEM*/
-    DEFINE_PROP_UINT8("is_cmmh", CXLType3Dev, is_cmmh, 0),
- 
     DEFINE_PROP_END_OF_LIST(),
 };
 
