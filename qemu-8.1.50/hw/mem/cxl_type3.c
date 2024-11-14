@@ -2424,11 +2424,11 @@ void qmp_cxl_cmmh_flush_cache(const char *path,
     Object *obj = object_resolve_path(path, NULL);
     if (!obj) {
         error_setg(errp, "Unable to resolve path");
-        return NULL;
+        return;
     }
     if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
         error_setg(errp, "Path not point to a valid CXL type3 device");
-        return NULL;
+        return;
     }
     CXLType3Dev *ct3d = CXL_TYPE3(obj);
 
