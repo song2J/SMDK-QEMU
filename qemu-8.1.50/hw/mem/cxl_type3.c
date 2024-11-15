@@ -834,6 +834,7 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
     CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
     CMMHCache* cache = &(ct3d->cmmh.cache);
     uint64_t victim;
+    cmmh_log("READ: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
 
     CacheLine* res;
 
@@ -881,6 +882,7 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
     uint64_t victim;
 
     CacheLine* res;
+    cmmh_log("WRITE: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
 
     while(size > 0) {
         fc->tot_write_req++;
