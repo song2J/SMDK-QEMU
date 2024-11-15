@@ -242,8 +242,8 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     }
     
     if (cmmh_mr) {
-        rc = ct3_build_cdat_entries_for_mr(&(table[cur_ent]), dsmad_handle++, cmr_size,
-                                           false, false, 0);
+        rc = ct3_build_cdat_entries_for_mr(&(table[cur_ent]), dsmad_handle++, 
+                                           cmr_size, true, false, vmr_size);
         if (rc < 0) {
             goto error_cleanup;
         }
@@ -833,21 +833,26 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
 {
     CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
     CMMHCache* cache = &(ct3d->cmmh.cache);
-    uint64_t victim = UINT64_MAX;
+    uint64_t victim;
+    cmmh_log("READ: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
 
     CacheLine* res;
 
-    fc->tot_read_req += size/sizeof(uint64_t);
-    while(size) {
+    while(1) {
+        fc->tot_write_req++;
         res = cache->access(cache, dpa_offset, &victim);
 
         /* Is the entry HIT? */
         if(victim == UINT64_MAX) {
-            size -= sizeof(uint64_t);
-            dpa_offset += sizeof(uint64_t);
+            if(size <= (fc->page_size - (dpa_offset % fc->page_size)))
+                break;
+            size        -= fc->page_size - (dpa_offset % fc->page_size);
+            dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
             continue;
         }
         
+        fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
+                                                fc->page_size / fc->bb_params.secsz, false);
         /* Is there a requested entry inside a Flash? Then, Fill the cache with it */
         if(fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
                                                 fc->page_size / fc->bb_params.secsz, false)) {
@@ -858,8 +863,10 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
             cache->fill(cache, res, dpa_offset);
         }
 
-        size -= sizeof(uint64_t);
-        dpa_offset += sizeof(uint64_t);
+        if(size <= (fc->page_size - (dpa_offset % fc->page_size)))
+            break;
+        size        -= fc->page_size - (dpa_offset % fc->page_size);
+        dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
     }
 }
 static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
@@ -878,19 +885,22 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
     */
     CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
     CMMHCache* cache = &(ct3d->cmmh.cache);
-    uint64_t victim = UINT64_MAX;
+    uint64_t victim;
 
     CacheLine* res;
+    cmmh_log("WRITE: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
 
-    fc->tot_write_req += size/sizeof(uint64_t);
-    while(size) {
+    while(1) {
+        fc->tot_write_req++;
         res = cache->access(cache, dpa_offset, &victim);
 
         /* Is the entry HIT? */
         if(victim == UINT64_MAX) {
             cache->modify(cache, res);
-            size -= sizeof(uint64_t);
-            dpa_offset += sizeof(uint64_t);
+            if(size <= (fc->page_size - (dpa_offset % fc->page_size)))
+                break;
+            size        -= fc->page_size - (dpa_offset % fc->page_size);
+            dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
             continue;
         }
         
@@ -904,9 +914,11 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
                                                 fc->page_size / fc->bb_params.secsz, false);
         cache->fill(cache, res, dpa_offset);
         cache->modify(cache, res);
-
-        size -= sizeof(uint64_t);
-        dpa_offset += sizeof(uint64_t);
+        
+        if(size <= (fc->page_size - (dpa_offset % fc->page_size)))
+            break;
+        size        -= fc->page_size - (dpa_offset % fc->page_size);
+        dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
     }
 }
 
@@ -983,7 +995,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         ct3d->hostmem = NULL;
     }
 
-    if ((ct3d->hostpmem) && !ct3d->lsa) {
+    if ((ct3d->hostpmem || ct3d->hostcmmh) && !ct3d->lsa) {
         error_setg(errp, "lsa property must be set for persistent devices");
         return false;
     }
@@ -1044,7 +1056,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
             error_setg(errp, "cmm-hybrid memdev must have backing device");
             return false;
         }
-        memory_region_set_nonvolatile(pmr, false);
+        memory_region_set_nonvolatile(pmr, true);
         memory_region_set_enabled(pmr, true);
         host_memory_backend_set_mapped(ct3d->hostcmmh, true);
         if (ds->id) {
@@ -1055,7 +1067,7 @@ static bool cxl_setup_memory(CXLType3Dev *ct3d, Error **errp)
         address_space_init(&ct3d->hostcmmh_as, pmr, p_name);
         //ct3d->cxl_dstate.pmem_size = memory_region_size(pmr);
         /* CMMH Volatile */
-        ct3d->cxl_dstate.vmem_size = memory_region_size(pmr);
+        ct3d->cxl_dstate.pmem_size = memory_region_size(pmr);
         ct3d->cxl_dstate.static_mem_size += memory_region_size(pmr);
         g_free(p_name);
 
@@ -1573,9 +1585,6 @@ static Property ct3_props[] = {
     DEFINE_PROP_INT32("cache_index_bits", CXLType3Dev, cmmh.cache.index_bits, 20),
     DEFINE_PROP_INT32("cache_num_tag", CXLType3Dev, cmmh.cache.num_tag, 16),
 
-    /* IS PMEM*/
-    DEFINE_PROP_UINT8("is_cmmh", CXLType3Dev, is_cmmh, 0),
- 
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2401,7 +2410,7 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     return ret;
 }
 
-void cmmh_flush_cache(CXLType3Dev *ct3d)
+static void cmmh_flush_cache(CXLType3Dev *ct3d)
 {
     CMMHFlashCtrl *fc = &(ct3d->cmmh.fc);
     CMMHCache *cc = &(ct3d->cmmh.cache);
@@ -2425,11 +2434,11 @@ void qmp_cxl_cmmh_flush_cache(const char *path,
     Object *obj = object_resolve_path(path, NULL);
     if (!obj) {
         error_setg(errp, "Unable to resolve path");
-        return NULL;
+        return;
     }
     if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
         error_setg(errp, "Path not point to a valid CXL type3 device");
-        return NULL;
+        return;
     }
     CXLType3Dev *ct3d = CXL_TYPE3(obj);
 

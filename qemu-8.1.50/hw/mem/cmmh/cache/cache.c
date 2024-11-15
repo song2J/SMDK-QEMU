@@ -3,28 +3,29 @@
 #include "qemu/uuid.h"
 #include "qemu/units.h"
 
-static inline uint64_t getCacheOffset(CMMHCache* cc, uint64_t dpa)
+static inline uint64_t get_cache_offset(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa & ((1 << cc->line_bits) - 1));
+    return dpa % (1 << cc->line_bits);
 }
 
-static inline uint64_t getCacheTag(CMMHCache* cc, uint64_t dpa)
+static inline uint64_t get_cache_tag(CMMHCache* cc, uint64_t dpa)
 {
     return (dpa >> (cc->line_bits + cc->index_bits));// & ((1 << (cc->tag_bits)) - 1);
 }
 
-static inline uint64_t getCacheIdx(CMMHCache* cc, uint64_t dpa)
+static inline uint64_t get_cache_idx(CMMHCache* cc, uint64_t dpa)
 {
-    return (dpa >> (cc->line_bits)) & ((1 << (cc->index_bits)) - 1);
+    return (dpa >> (cc->line_bits)) % (1 << (cc->index_bits)); 
 }
 
-static inline uint64_t get_dpa(CMMHCache *cc, uint64_t tag, uint64_t idx, uint64_t addr)
+static inline uint64_t get_dpa(CMMHCache *cc, uint64_t tag, uint64_t idx, uint64_t off)
 {
-    return (tag << (cc->index_bits + cc->line_bits)) + (idx << cc->line_bits) + addr;
+    return (tag << (cc->index_bits + cc->line_bits)) + (idx << cc->line_bits) + off;
 }
 
-static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheLine *curr)
+static void cache_promote_line(CMMHCache *cc, uint64_t idx, CacheLine *curr)
 {
+    assert(idx == get_cache_idx(cc, curr->dpa));
     if(cc->table[idx] == curr)
         return;
 
@@ -51,18 +52,19 @@ static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheLine *curr)
 
 static CacheLine* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 {
-    //cmmh_cache_log("%s, CMMH Cache access [Entered] at [%x]!\n", "CACHE", dpa);
-    dpa -= getCacheOffset(cc, dpa);
-    uint64_t tag = getCacheTag(cc, dpa);
-    uint64_t idx = getCacheIdx(cc, dpa);
+   // cmmh_cache_log("%s, CMMH Cache access [Entered] at [%x]!\n, OFFSET=[%d]", "CACHE", dpa, get_cache_offset(cc, dpa));
+    dpa -= get_cache_offset(cc, dpa);
+    uint64_t tag = get_cache_tag(cc, dpa);
+    uint64_t idx = get_cache_idx(cc, dpa);
     
     CacheLine *curr = cc->table[idx];
     CacheLine *bef;
     while(curr) {
-        if(curr->valid && getCacheTag(cc, curr->dpa) == tag) {
-            cachePromoteNode(cc, idx, curr);
+        if(curr->valid && get_cache_tag(cc, curr->dpa) == tag) {
+            cache_promote_line(cc, idx, curr);
             cc->cache_hit ++;
-            //cmmh_cache_log("%s, HIT cmmh cache access [Returned] at [%x]! tag: %x index: %x\n", "cache", dpa, tag, idx);
+            *victim = UINT64_MAX;
+    //        cmmh_cache_log("%s, HIT cmmh cache access [Returned] at [%x]! tag: %x index: %x\n", "cache", dpa, tag, idx);
             return curr;
         }
         bef = curr;
@@ -77,7 +79,7 @@ static CacheLine* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 }
 
 /*
-    Modify the given entry; set difty flag
+    Modify the given entry; set dirty flag
 */
 
 static void cache_modify(CMMHCache* cc, CacheLine* cn)
@@ -96,12 +98,12 @@ static void cache_modify(CMMHCache* cc, CacheLine* cn)
 static void cache_fill(CMMHCache* cc, CacheLine* cn, uint64_t dpa)
 {
     //cmmh_cache_log("%s, CMMH Cache fill [Entered] at [%x]!\n", "CACHE", dpa);
-    uint64_t idx = getCacheIdx(cc, dpa);
+    uint64_t idx = get_cache_idx(cc, dpa);
 
-    cachePromoteNode(cc, idx, cn);
+    cache_promote_line(cc, idx, cn);
     cn->valid = true;
     cn->dirty = false;
-    cn->dpa = dpa;
+    cn->dpa = dpa - get_cache_offset(cc, dpa);
 }
 
 static CacheLine *cache_advance_valid_line(CMMHCache *cc, CacheLine *cn)
@@ -111,7 +113,7 @@ static CacheLine *cache_advance_valid_line(CMMHCache *cc, CacheLine *cn)
         if(cn->next) { 
             ret = cn->next;
         } else {
-            int next_idx = getCacheIdx(cc, cn->dpa) + 1;
+            int next_idx = get_cache_idx(cc, cn->dpa) + 1;
             if(next_idx == (1 << (cc->index_bits)))
                 return NULL;
             ret = cc->table[next_idx];
@@ -129,37 +131,38 @@ static CacheLine *cache_get_valid_head_line(CMMHCache *cc)
 }
 
 
-void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
+void cmmh_cache_init(CMMHCache *cc, uint16_t pg_bits)
 {
-    cmmh_cache_log("%s, CMMH Cache initialization [Entered]!\n", "CACHYEE");
+    //cmmh_cache_log("%s, CMMH Cache initialization [Entered]!\n", "CACHYEE");
     /* Currently single NAND Flash page size */
-    cache->line_bits = pg_bits;
-    int index_bits  = cache->index_bits;
-    int num_tag     = cache->num_tag;
+    cc->line_bits = pg_bits;
+    int index_bits  = cc->index_bits;
+    int num_tag     = cc->num_tag;
 
-    cache->table = g_malloc0(sizeof(CacheLine*) * (1 << index_bits));
+    cc->table = g_malloc0(sizeof(CacheLine*) * (1 << index_bits));
     for(int i = 0; i < (1 << index_bits); i++) {
-        cache->table[i] = NULL;
+        cc->table[i] = NULL;
         for(int j = 0; j < num_tag; j++) {
             CacheLine* curr = g_malloc0(sizeof(CacheLine));
             curr->dirty = false;
             curr->valid = false;
-            if(cache->table[i] != NULL)
-                cache->table[i]->prev = curr;
-            curr->next = cache->table[i];
+            curr->dpa = get_dpa(cc, 0, i, 0);
+            if(cc->table[i] != NULL)
+                cc->table[i]->prev = curr;
+            curr->next = cc->table[i];
             curr->prev = NULL;
-            cache->table[i] = curr;
+            cc->table[i] = curr;
         }
     }
     
-    cache->access = cache_access;
-    cache->modify = cache_modify;
-    cache->fill = cache_fill;
-    cache->get_valid_head_line = cache_get_valid_head_line;
-    cache->advance_valid_line = cache_advance_valid_line;
+    cc->access = cache_access;
+    cc->modify = cache_modify;
+    cc->fill = cache_fill;
+    cc->get_valid_head_line = cache_get_valid_head_line;
+    cc->advance_valid_line = cache_advance_valid_line;
 
     /* STATUS INIT */
-    cache->cache_hit = 0;
-    cache->cache_miss = 0;
+    cc->cache_hit = 0;
+    cc->cache_miss = 0;
     //cmmh_cache_log("%s, CMMH Cache initialization [FINISHED]!\n", "CACHYEE");
 }
