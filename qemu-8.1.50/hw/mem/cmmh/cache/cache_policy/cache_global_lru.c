@@ -118,10 +118,10 @@ static void cache_promote_line(CMMHCache *cc, uint64_t idx, CacheLine *curr)
         *lru_tail_p = get_prev_lru_line(curr);
 
     if(lru_prev)
-        set_lru_next_line(lru_prev, lru_next);
+        set_next_lru_line(lru_prev, lru_next);
     
     if(lru_next)
-        set_lru_prev_line(lru_next, lru_prev);
+        set_prev_lru_line(lru_next, lru_prev);
 
     set_next_lru_line(curr, *lru_head_p);
     set_prev_lru_line(*lru_head_p, curr);
@@ -194,8 +194,8 @@ static void cache_fill(CMMHCache* cc, CacheLine* cn, uint64_t dpa)
 
 static CacheLine *cache_advance_valid_line(CMMHCache *cc, CacheLine *cn)
 {
-    GlobalLRUCache *table = (CacheLine**)cc->table;
-    CacheLine
+    GlobalLRUCache *table = cc->table;
+    CacheLine** heads = (CacheLine**)(table->heads);
     CacheLine *ret = get_next_line(cn);
     while(ret == NULL || !ret->valid) {
         if(get_next_line(ret)) { 
@@ -212,7 +212,8 @@ static CacheLine *cache_advance_valid_line(CMMHCache *cc, CacheLine *cn)
 
 static CacheLine *cache_get_valid_head_line(CMMHCache *cc)
 {
-    CacheLine **heads = (CacheLine**)cc->heads;
+    GlobalLRUCache *table = cc->table;
+    CacheLine** heads = (CacheLine**)(table->heads);
     CacheLine *ret = heads[0];
     if(ret->valid == false)
         ret = cache_advance_valid_line(cc, ret);
@@ -229,13 +230,13 @@ void cmmh_cache_global_lru_init(CMMHCache *cc)
     /* Currently single NAND Flash page size */
     cc->table = g_malloc0(sizeof(GlobalLRUCache));
 
-    (GlobalLRUCache)(cc->table)->heads = g_malloc0(sizeof(CacheLine*) * (1 << index_bits));
-    (GlobalLRUCache)(cc->table)->lru_head = NULL;
-    (GlobalLRUCache)(cc->table)->lru_tail = NULL;
+    (GlobalLRUCache*)(cc->table)->heads = g_malloc0(sizeof(CacheLine*) * (1 << index_bits));
+    (GlobalLRUCache*)(cc->table)->lru_head = NULL;
+    (GlobalLRUCache*)(cc->table)->lru_tail = NULL;
 
-    CacheLine** heads = (GlobalLRUCache)(cc->table)->heads;
-    CacheLine** lru_head_p = &(GlobalLRUCache)(cc->table)->lru_head;
-    CacheLine** lru_tail_p = &(GlobalLRUCache)(cc->table)->lru_tail;
+    CacheLine** heads = (GlobalLRUCache*)(cc->table)->heads;
+    CacheLine** lru_head_p = &((GlobalLRUCache*)(cc->table)->lru_head);
+    CacheLine** lru_tail_p = &((GlobalLRUCache*)(cc->table)->lru_tail);
 
     for(int i = 0; i < (1 << index_bits); i++) {
         heads[i] = NULL;
