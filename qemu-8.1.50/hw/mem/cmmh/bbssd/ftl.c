@@ -896,11 +896,11 @@ static bool bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write
     bool ret;
     switch (req.opcode) {
     case CMMH_FLASH_CMD_WRITE:
-        //cmmh_ftl_log("CMMH: cmm_flash SSD_WRITE [lba: %d, nlb: %d]\n", lba, size);
+        cmmh_ftl_log("CMMH: cmm_flash SSD_WRITE [lba: %d, nlb: %d]\n", lba, size);
         ret = ssd_write(ssd, &req);
         break;
     case CMMH_FLASH_CMD_READ:
-        //cmmh_ftl_log("CMMH: cmm_flash SSD_READ [lba: %d, nlb: %d]\n", lba, size);
+        cmmh_ftl_log("CMMH: cmm_flash SSD_READ [lba: %d, nlb: %d]\n", lba, size);
         ret = ssd_read(ssd, &req);
         break;
     case CMMH_FLASH_CMD_DSM:
