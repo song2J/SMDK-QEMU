@@ -851,8 +851,6 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
             continue;
         }
         
-        fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
-                                                fc->page_size / fc->bb_params.secsz, false);
         /* Is there a requested entry inside a Flash? Then, Fill the cache with it */
         if(fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
                                                 fc->page_size / fc->bb_params.secsz, false)) {
