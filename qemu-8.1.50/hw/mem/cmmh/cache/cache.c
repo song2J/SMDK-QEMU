@@ -25,6 +25,7 @@ static inline uint64_t get_dpa(CMMHCache *cc, uint64_t tag, uint64_t idx, uint64
 
 static void cachePromoteNode(CMMHCache *cc, uint64_t idx, CacheLine *curr)
 {
+    assert(idx == getCacheIdx(cc, curr->dpa))
     if(cc->table[idx] == curr)
         return;
 
