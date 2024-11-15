@@ -131,38 +131,38 @@ static CacheLine *cache_get_valid_head_line(CMMHCache *cc)
 }
 
 
-void cmmh_cache_init(CMMHCache *cache, uint16_t pg_bits)
+void cmmh_cache_init(CMMHCache *cc, uint16_t pg_bits)
 {
     //cmmh_cache_log("%s, CMMH Cache initialization [Entered]!\n", "CACHYEE");
     /* Currently single NAND Flash page size */
-    cache->line_bits = pg_bits;
-    int index_bits  = cache->index_bits;
-    int num_tag     = cache->num_tag;
+    cc->line_bits = pg_bits;
+    int index_bits  = cc->index_bits;
+    int num_tag     = cc->num_tag;
 
-    cache->table = g_malloc0(sizeof(CacheLine*) * (1 << index_bits));
+    cc->table = g_malloc0(sizeof(CacheLine*) * (1 << index_bits));
     for(int i = 0; i < (1 << index_bits); i++) {
-        cache->table[i] = NULL;
+        cc->table[i] = NULL;
         for(int j = 0; j < num_tag; j++) {
             CacheLine* curr = g_malloc0(sizeof(CacheLine));
             curr->dirty = false;
             curr->valid = false;
             curr->dpa = get_dpa(cc, 0, i, 0);
-            if(cache->table[i] != NULL)
-                cache->table[i]->prev = curr;
-            curr->next = cache->table[i];
+            if(cc->table[i] != NULL)
+                cc->table[i]->prev = curr;
+            curr->next = cc->table[i];
             curr->prev = NULL;
-            cache->table[i] = curr;
+            cc->table[i] = curr;
         }
     }
     
-    cache->access = cache_access;
-    cache->modify = cache_modify;
-    cache->fill = cache_fill;
-    cache->get_valid_head_line = cache_get_valid_head_line;
-    cache->advance_valid_line = cache_advance_valid_line;
+    cc->access = cache_access;
+    cc->modify = cache_modify;
+    cc->fill = cache_fill;
+    cc->get_valid_head_line = cache_get_valid_head_line;
+    cc->advance_valid_line = cache_advance_valid_line;
 
     /* STATUS INIT */
-    cache->cache_hit = 0;
-    cache->cache_miss = 0;
+    cc->cache_hit = 0;
+    cc->cache_miss = 0;
     //cmmh_cache_log("%s, CMMH Cache initialization [FINISHED]!\n", "CACHYEE");
 }

@@ -2410,7 +2410,7 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     return ret;
 }
 
-void cmmh_flush_cache(CXLType3Dev *ct3d)
+static void cmmh_flush_cache(CXLType3Dev *ct3d)
 {
     CMMHFlashCtrl *fc = &(ct3d->cmmh.fc);
     CMMHCache *cc = &(ct3d->cmmh.cache);
