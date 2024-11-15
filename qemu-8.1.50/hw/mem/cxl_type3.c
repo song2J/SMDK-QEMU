@@ -2371,6 +2371,40 @@ void qmp_cxl_release_dynamic_capacity(const char *path,
                                      errp);
 }
 
+static void init_cmmh_stat(CXLType3Dev* ct3d){
+    CMMHFlashCtrl fc = (ct3d->cmmh.fc);
+    CMMHCache *cc = &(ct3d->cmmh.cache);
+
+    fc->tot_read_lat = 0;
+    fc->tot_write_lat = 0;
+    fc->tot_erase_lat = 0;
+    fc->write_cnt = 0;
+    fc->read_cnt = 0;
+    fc->erase_cnt = 0;
+    fc->tot_write_req = 0;
+    fc->tot_read_req = 0;
+    
+    cc->cache_hit = 0;
+    cc->cache_miss = 0;
+}
+
+void qmp_cxl_init_cmmh_stat(const char *path,
+                                Error **errp)
+{
+    Object *obj = object_resolve_path(path, NULL);
+    if (!obj) {
+        error_setg(errp, "Unable to resolve path");
+        return NULL;
+    }
+    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+        error_setg(errp, "Path not point to a valid CXL type3 device");
+        return NULL;
+    }
+    CXLType3Dev *ct3d = CXL_TYPE3(obj);
+    init_cmmh_stat(ct3d);
+    return;
+}
+
 CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
                                 Error **errp)
 {
@@ -2405,6 +2439,9 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     ret->hit_miss_ratio = g_new0(char, 50);
     
     snprintf(ret->flash_io_latency, 50, "%ld", tot_lat);
+    snprintf(ret->flash_read_latency, 50, "%ld", fc->tot_read_lat);
+    snprintf(ret->flash_write_latency, 50, "%ld", fc->tot_write_lat);
+    snprintf(ret->flash_erase_latency, 50, "%ld", fc->tot_erase_lat);
     snprintf(ret->write_amplification_factor, 50, "%lf", waf);
     snprintf(ret->hit_miss_ratio, 50, "%lf", hit_miss_ratio);
     
