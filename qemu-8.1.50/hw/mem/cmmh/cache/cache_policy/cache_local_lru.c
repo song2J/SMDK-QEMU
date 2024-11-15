@@ -146,7 +146,7 @@ static CacheLine *cache_advance_valid_line(CMMHCache *cc, CacheLine *cn)
 {
     CacheLine** table = (CacheLine**)cc->table;
     CacheLine *ret = get_next_line(cn);
-    while(ret == NULL || !ret->valid) {
+    while(ret && !ret->valid) {
         if(get_next_line(ret)) { 
             ret = get_next_line(ret);
         } else {

@@ -89,27 +89,32 @@ static inline CacheLine *allocate_line(void)
 static void cache_promote_line(CMMHCache *cc, uint64_t idx, CacheLine *curr)
 {
     GlobalLRUCache *table = cc->table;
-    CacheLine** heads = (CacheLine**)(table->heads);
+    CacheLine** heads = table->heads;
     CacheLine** lru_head_p = &(table->lru_head);
     CacheLine** lru_tail_p = &(table->lru_tail);
 
-    assert(idx == get_cache_idx(cc, curr->dpa));
-    if(heads[idx] == curr)
-        return;
-
+    /* Phase1: evict the line from the previous list */
     CacheLine *prev = get_prev_line(curr);
     CacheLine *next = get_next_line(curr);
+    uint64_t prev_idx = get_cache_idx(cc, curr->dpa);
 
     if(prev)
         set_next_line(prev, next);
-    
     if(next)
         set_prev_line(next, prev);
+    if(heads[prev_idx] == curr)
+        heads[prev_idx] = get_next_line(curr);
 
+    /* Phase2: Insert the line to the Current list */
+    if(heads[idx])
+        set_prev_line(heads[idx], curr);
     set_next_line(curr, heads[idx]);
-    set_prev_line(heads[idx], curr);
     set_prev_line(curr, NULL);
     heads[idx] = curr;
+
+    /* Phase3: Update lru list(if curr == lru_head, do nothing) */
+    if(curr == *lru_head_p)
+        return;
 
     CacheLine *lru_prev = get_prev_lru_line(curr);
     CacheLine *lru_next = get_next_lru_line(curr);
@@ -143,7 +148,7 @@ static CacheLine* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
     uint64_t idx = get_cache_idx(cc, dpa);
     
     GlobalLRUCache *table = cc->table;
-    CacheLine** heads = (CacheLine**)(table->heads);
+    CacheLine** heads = table->heads;
 
     CacheLine *curr = heads[idx];
     while(curr) {
@@ -186,35 +191,25 @@ static void cache_fill(CMMHCache* cc, CacheLine* cn, uint64_t dpa)
     //cmmh_cache_log("%s, CMMH Cache fill [Entered] at [%x]!\n", "CACHE", dpa);
     uint64_t idx = get_cache_idx(cc, dpa);
 
+    cache_promote_line(cc, idx, cn);
     cn->valid = true;
     cn->dirty = false;
     cn->dpa = dpa - get_cache_offset(cc, dpa);
-    cache_promote_line(cc, idx, cn);
 }
 
 static CacheLine *cache_advance_valid_line(CMMHCache *cc, CacheLine *cn)
 {
     GlobalLRUCache *table = cc->table;
-    CacheLine** heads = (CacheLine**)(table->heads);
-    CacheLine *ret = get_next_line(cn);
-    while(ret == NULL || !ret->valid) {
-        if(get_next_line(ret)) { 
-            ret = get_next_line(ret);
-        } else {
-            int next_idx = get_cache_idx(cc, cn->dpa) + 1;
-            if(next_idx == (1 << (cc->index_bits)))
-                return NULL;
-            ret = heads[next_idx];
-        }
-    }
+    CacheLine *ret = get_next_lru_line(cn);
+    while(ret && !ret->valid)
+        ret = get_next_lru_line(ret);
     return ret;
 }
 
 static CacheLine *cache_get_valid_head_line(CMMHCache *cc)
 {
     GlobalLRUCache *table = cc->table;
-    CacheLine** heads = (CacheLine**)(table->heads);
-    CacheLine *ret = heads[0];
+    CacheLine *ret = table->lru_head;
     if(ret->valid == false)
         ret = cache_advance_valid_line(cc, ret);
     return ret;
@@ -252,11 +247,10 @@ void cmmh_cache_global_lru_init(CMMHCache *cc)
             set_prev_line(curr, NULL);
             heads[i] = curr;
 
-            if(*lru_head_p != NULL) {
+            if(*lru_head_p != NULL)
                 set_prev_lru_line(*lru_head_p, curr);
-                set_next_lru_line(curr, *lru_head_p);
-                set_prev_lru_line(curr, NULL);
-            }
+            set_next_lru_line(curr, *lru_head_p);
+            set_prev_lru_line(curr, NULL);
             *lru_head_p = curr;
             if(*lru_tail_p == NULL)
                 *lru_tail_p = curr;
