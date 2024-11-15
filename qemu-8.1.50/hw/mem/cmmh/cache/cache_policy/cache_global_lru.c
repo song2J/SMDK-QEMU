@@ -186,10 +186,10 @@ static void cache_fill(CMMHCache* cc, CacheLine* cn, uint64_t dpa)
     //cmmh_cache_log("%s, CMMH Cache fill [Entered] at [%x]!\n", "CACHE", dpa);
     uint64_t idx = get_cache_idx(cc, dpa);
 
-    cache_promote_line(cc, idx, cn);
     cn->valid = true;
     cn->dirty = false;
     cn->dpa = dpa - get_cache_offset(cc, dpa);
+    cache_promote_line(cc, idx, cn);
 }
 
 static CacheLine *cache_advance_valid_line(CMMHCache *cc, CacheLine *cn)
