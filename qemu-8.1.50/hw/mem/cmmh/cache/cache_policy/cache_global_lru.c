@@ -230,13 +230,13 @@ void cmmh_cache_global_lru_init(CMMHCache *cc)
     /* Currently single NAND Flash page size */
     cc->table = g_malloc0(sizeof(GlobalLRUCache));
 
-    (GlobalLRUCache*)(cc->table)->heads = g_malloc0(sizeof(CacheLine*) * (1 << index_bits));
-    (GlobalLRUCache*)(cc->table)->lru_head = NULL;
-    (GlobalLRUCache*)(cc->table)->lru_tail = NULL;
+    ((GlobalLRUCache*)cc->table)->heads = g_malloc0(sizeof(CacheLine*) * (1 << index_bits));
+    ((GlobalLRUCache*)cc->table)->lru_head = NULL;
+    ((GlobalLRUCache*)cc->table)->lru_tail = NULL;
 
-    CacheLine** heads = (GlobalLRUCache*)(cc->table)->heads;
-    CacheLine** lru_head_p = &((GlobalLRUCache*)(cc->table)->lru_head);
-    CacheLine** lru_tail_p = &((GlobalLRUCache*)(cc->table)->lru_tail);
+    CacheLine** heads = ((GlobalLRUCache*)cc->table)->heads;
+    CacheLine** lru_head_p = &(((GlobalLRUCache*)cc->table)->lru_head);
+    CacheLine** lru_tail_p = &(((GlobalLRUCache*)cc->table)->lru_tail);
 
     for(int i = 0; i < (1 << index_bits); i++) {
         heads[i] = NULL;
