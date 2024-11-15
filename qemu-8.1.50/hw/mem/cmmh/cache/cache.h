@@ -25,7 +25,7 @@ typedef enum{
 } CachePolicy;
 
 typedef struct CMMHCache {
-    CachePolicy cache_policy;
+    int32_t cache_policy;
 
     int line_bits;
     int index_bits;
