@@ -79,7 +79,7 @@ static CacheLine* cache_access(CMMHCache *cc, uint64_t dpa, uint64_t *victim)
 }
 
 /*
-    Modify the given entry; set difty flag
+    Modify the given entry; set dirty flag
 */
 
 static void cache_modify(CMMHCache* cc, CacheLine* cn)

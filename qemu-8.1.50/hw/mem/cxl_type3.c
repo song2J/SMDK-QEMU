@@ -838,29 +838,33 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
 
     CacheLine* res;
 
-    while(size > 0) {
+    while(1) {
         fc->tot_write_req++;
-//        res = cache->access(cache, dpa_offset, &victim);
+        res = cache->access(cache, dpa_offset, &victim);
 
         /* Is the entry HIT? */
-/*        if(victim == UINT64_MAX) {
+        if(victim == UINT64_MAX) {
+            if(size <= (fc->page_size - (dpa_offset % fc->page_size)))
+                break;
             size        -= fc->page_size - (dpa_offset % fc->page_size);
             dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
             continue;
         }
-*/        
+        
         fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
                                                 fc->page_size / fc->bb_params.secsz, false);
         /* Is there a requested entry inside a Flash? Then, Fill the cache with it */
-//        if(fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
-//                                                fc->page_size / fc->bb_params.secsz, false)) {
+        if(fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
+                                                fc->page_size / fc->bb_params.secsz, false)) {
             /* Flush phase: Is the evicted data dirty? */
-//            if(res->valid && res->dirty)
-//                fc->flash_ops.ftl_io(fc, (victim / fc->page_size * fc->bb_params.secs_per_pg), 
-//                                                fc->page_size / fc->bb_params.secsz, true);
-//            cache->fill(cache, res, dpa_offset);
-//        }
+            if(res->valid && res->dirty)
+                fc->flash_ops.ftl_io(fc, (victim / fc->page_size * fc->bb_params.secs_per_pg), 
+                                                fc->page_size / fc->bb_params.secsz, true);
+            cache->fill(cache, res, dpa_offset);
+        }
 
+        if(size <= (fc->page_size - (dpa_offset % fc->page_size)))
+            break;
         size        -= fc->page_size - (dpa_offset % fc->page_size);
         dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
     }
@@ -886,13 +890,15 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
     CacheLine* res;
     cmmh_log("WRITE: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
 
-    while(size > 0) {
+    while(1) {
         fc->tot_write_req++;
         res = cache->access(cache, dpa_offset, &victim);
 
         /* Is the entry HIT? */
         if(victim == UINT64_MAX) {
             cache->modify(cache, res);
+            if(size <= (fc->page_size - (dpa_offset % fc->page_size)))
+                break;
             size        -= fc->page_size - (dpa_offset % fc->page_size);
             dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
             continue;
@@ -908,7 +914,9 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
                                                 fc->page_size / fc->bb_params.secsz, false);
         cache->fill(cache, res, dpa_offset);
         cache->modify(cache, res);
-
+        
+        if(size <= (fc->page_size - (dpa_offset % fc->page_size)))
+            break;
         size        -= fc->page_size - (dpa_offset % fc->page_size);
         dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
     }
