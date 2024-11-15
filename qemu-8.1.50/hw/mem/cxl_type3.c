@@ -2433,6 +2433,9 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
 
     CMMHMetadata *ret = g_new0(CMMHMetadata, 1);
     ret->flash_io_latency = g_new0(char, 50);
+    ret->flash_read_latency = g_new0(char, 50);
+    ret->flash_write_latency = g_new0(char, 50);
+    ret->flash_erase_latency = g_new0(char, 50);
     ret->write_amplification_factor = g_new0(char, 50);
     ret->hit_miss_ratio = g_new0(char, 50);
     
