@@ -1584,6 +1584,7 @@ static Property ct3_props[] = {
     /* Cache props */
     DEFINE_PROP_INT32("cache_index_bits", CXLType3Dev, cmmh.cache.index_bits, 20),
     DEFINE_PROP_INT32("cache_num_tag", CXLType3Dev, cmmh.cache.num_tag, 16),
+    DEFINE_PROP_INT32("cache_policy", CXLType3Dev, cmmh.cache.cache_policy, 1),
 
     DEFINE_PROP_END_OF_LIST(),
 };
