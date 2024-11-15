@@ -2372,7 +2372,7 @@ void qmp_cxl_release_dynamic_capacity(const char *path,
 }
 
 static void init_cmmh_stat(CXLType3Dev* ct3d){
-    CMMHFlashCtrl fc = (ct3d->cmmh.fc);
+    CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
     CMMHCache *cc = &(ct3d->cmmh.cache);
 
     fc->tot_read_lat = 0;
@@ -2394,11 +2394,11 @@ void qmp_cxl_init_cmmh_stat(const char *path,
     Object *obj = object_resolve_path(path, NULL);
     if (!obj) {
         error_setg(errp, "Unable to resolve path");
-        return NULL;
+        return;
     }
     if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
         error_setg(errp, "Path not point to a valid CXL type3 device");
-        return NULL;
+        return;
     }
     CXLType3Dev *ct3d = CXL_TYPE3(obj);
     init_cmmh_stat(ct3d);
