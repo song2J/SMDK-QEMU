@@ -31,22 +31,22 @@ static inline uint64_t get_dpa(CMMHCache *cc, uint64_t tag, uint64_t idx, uint64
 
 static inline CacheLine *get_next_line (CacheLine* curr)
 {
-    return ((PolicySpecificData)curr->policy_specific_data)->next;
+    return ((PolicySpecificData)(curr->policy_specific_data))->next;
 }
 
 static inline void set_next_line (CacheLine* curr, CacheLine* next)
 {
-    ((PolicySpecificData)curr->policy_specific_data)->next = next;
+    ((PolicySpecificData)(curr->policy_specific_data))->next = next;
 }
 
 static inline CacheLine *get_prev_line (CacheLine* curr)
 {
-    return ((PolicySpecificData)curr->policy_specific_data)->prev;
+    return ((PolicySpecificData)(curr->policy_specific_data))->prev;
 }
 
 static inline void set_prev_line (CacheLine* curr, CacheLine* prev)
 {
-    ((PolicySpecificData)curr->policy_specific_data)->prev = prev;
+    ((PolicySpecificData)(curr->policy_specific_data))->prev = prev;
 }
 
 static inline CacheLine *allocate_line(void)
