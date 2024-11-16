@@ -2384,6 +2384,8 @@ static void init_cmmh_stat(CXLType3Dev* ct3d){
     
     cc->cache_hit = 0;
     cc->cache_miss = 0;
+
+    fc->flash_ops.init_stat(fc);
 }
 
 void qmp_cxl_init_cmmh_stat(const char *path,

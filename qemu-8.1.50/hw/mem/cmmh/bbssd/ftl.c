@@ -526,7 +526,6 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         lun->next_lun_avail_time = nand_stime + spp->blk_er_lat;
 
         lat = lun->next_lun_avail_time - cmd_stime;
-        ssd->erase_cnt ++;
         ssd->tot_erase_lat += lat;
         break;
 
@@ -624,7 +623,6 @@ static void mark_block_free(struct ssd *ssd, struct ppa *ppa)
     ftl_assert(blk->npgs == spp->pgs_per_blk);
     blk->ipc = 0;
     blk->vpc = 0;
-    blk->erase_cnt++;
 }
 
 static void gc_read_page(struct ssd *ssd, struct ppa *ppa)
@@ -637,7 +635,6 @@ static void gc_read_page(struct ssd *ssd, struct ppa *ppa)
         gcr.stime = 0;
         ssd_advance_status(ssd, ppa, &gcr);
     }
-    ssd->read_cnt ++;
 }
 
 /* move valid page data (already in DRAM) from victim line to a new page */
@@ -889,6 +886,17 @@ static void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashReq
     req->nlb = size;
 }
 
+static void bbssd_init_stat(CMMHFlashCtrl *n){
+    struct ssd *ssd = n->ssd;
+    ssd->read_cnt = 0;
+    ssd->write_cnt = 0;
+    ssd->erase_cnt = 0;
+
+    ssd->tot_read_lat = 0;
+    ssd->tot_write_lat = 0;
+    ssd->tot_erase_lat = 0;
+    return ret;
+}
 static bool bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write){
     struct ssd *ssd = n->ssd;
     CMMHFlashRequest req;
@@ -968,6 +976,7 @@ static void bb_init(CMMHFlashCtrl *n)
 }
 
 void cmmh_register_bb_flash_ops(CMMHFlashCtrl* n){
-    n->flash_ops.ftl_io=bbssd_ftl_io;
-    n->flash_ops.init=bb_init;
+    n->flash_ops.ftl_io = bbssd_ftl_io;
+    n->flash_ops.init = bb_init;
+    n->flash_ops.init_stat = bbssd_init_stat;
 }
