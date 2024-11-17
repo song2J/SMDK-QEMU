@@ -851,8 +851,6 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
             continue;
         }
         
-        fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
-                                                fc->page_size / fc->bb_params.secsz, false);
         /* Is there a requested entry inside a Flash? Then, Fill the cache with it */
         if(fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
                                                 fc->page_size / fc->bb_params.secsz, false)) {
@@ -1584,6 +1582,7 @@ static Property ct3_props[] = {
     /* Cache props */
     DEFINE_PROP_INT32("cache_index_bits", CXLType3Dev, cmmh.cache.index_bits, 20),
     DEFINE_PROP_INT32("cache_num_tag", CXLType3Dev, cmmh.cache.num_tag, 16),
+    DEFINE_PROP_INT32("cache_policy", CXLType3Dev, cmmh.cache.cache_policy, 1),
 
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -2370,6 +2369,42 @@ void qmp_cxl_release_dynamic_capacity(const char *path,
                                      errp);
 }
 
+static void init_cmmh_stat(CXLType3Dev* ct3d){
+    CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
+    CMMHCache *cc = &(ct3d->cmmh.cache);
+
+    fc->tot_read_lat = 0;
+    fc->tot_write_lat = 0;
+    fc->tot_erase_lat = 0;
+    fc->write_cnt = 0;
+    fc->read_cnt = 0;
+    fc->erase_cnt = 0;
+    fc->tot_write_req = 0;
+    fc->tot_read_req = 0;
+    
+    cc->cache_hit = 0;
+    cc->cache_miss = 0;
+
+    fc->flash_ops.init_stat(fc);
+}
+
+void qmp_cxl_init_cmmh_stat(const char *path,
+                                Error **errp)
+{
+    Object *obj = object_resolve_path(path, NULL);
+    if (!obj) {
+        error_setg(errp, "Unable to resolve path");
+        return;
+    }
+    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+        error_setg(errp, "Path not point to a valid CXL type3 device");
+        return;
+    }
+    CXLType3Dev *ct3d = CXL_TYPE3(obj);
+    init_cmmh_stat(ct3d);
+    return;
+}
+
 CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
                                 Error **errp)
 {
@@ -2400,10 +2435,16 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
 
     CMMHMetadata *ret = g_new0(CMMHMetadata, 1);
     ret->flash_io_latency = g_new0(char, 50);
+    ret->flash_read_latency = g_new0(char, 50);
+    ret->flash_write_latency = g_new0(char, 50);
+    ret->flash_erase_latency = g_new0(char, 50);
     ret->write_amplification_factor = g_new0(char, 50);
     ret->hit_miss_ratio = g_new0(char, 50);
     
     snprintf(ret->flash_io_latency, 50, "%ld", tot_lat);
+    snprintf(ret->flash_read_latency, 50, "%ld", fc->tot_read_lat);
+    snprintf(ret->flash_write_latency, 50, "%ld", fc->tot_write_lat);
+    snprintf(ret->flash_erase_latency, 50, "%ld", fc->tot_erase_lat);
     snprintf(ret->write_amplification_factor, 50, "%lf", waf);
     snprintf(ret->hit_miss_ratio, 50, "%lf", hit_miss_ratio);
     

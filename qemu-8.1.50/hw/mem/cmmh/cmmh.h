@@ -98,6 +98,7 @@ typedef struct CMMHFlashCtrl {
     struct {
         bool    (*ftl_io)(struct CMMHFlashCtrl*, uint64_t, int, bool);
         void        (*init)(struct CMMHFlashCtrl*);
+        void        (*init_stat)(struct CMMHFlashCtrl*);
     } flash_ops;
     /* Status Cnt */
     uint32_t        read_cnt;
