@@ -2441,10 +2441,6 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     CMMHFlashCtrl *fc = &(ct3d->cmmh.fc);
     CMMHCache *cc = &(ct3d->cmmh.cache);
 
-    uint64_t tot_lat = fc->tot_read_lat \
-                        + fc->tot_write_lat\
-                        + fc->tot_erase_lat;
-    
     uint64_t tot_write = fc->write_cnt * (fc->page_size/sizeof(uint64_t));
     uint64_t tot_write_req = fc->tot_write_req;
     double waf = (tot_write_req != 0)? ((double)tot_write) / tot_write_req: 0;
@@ -2454,17 +2450,15 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
                             : 0;
 
     CMMHMetadata *ret = g_new0(CMMHMetadata, 1);
-    ret->flash_io_latency = g_new0(char, 50);
-    ret->flash_read_latency = g_new0(char, 50);
-    ret->flash_write_latency = g_new0(char, 50);
-    ret->flash_erase_latency = g_new0(char, 50);
+    ret->flash_read_cnt = g_new0(char, 50);
+    ret->flash_write_cnt = g_new0(char, 50);
+    ret->flash_erase_cnt = g_new0(char, 50);
     ret->write_amplification_factor = g_new0(char, 50);
     ret->hit_miss_ratio = g_new0(char, 50);
     
-    snprintf(ret->flash_io_latency, 50, "%ld", tot_lat);
-    snprintf(ret->flash_read_latency, 50, "%ld", fc->tot_read_lat);
-    snprintf(ret->flash_write_latency, 50, "%ld", fc->tot_write_lat);
-    snprintf(ret->flash_erase_latency, 50, "%ld", fc->tot_erase_lat);
+    snprintf(ret->flash_read_cnt, 50, "%ld", fc->read_cnt);
+    snprintf(ret->flash_write_cnt, 50, "%ld", fc->write_cnt);
+    snprintf(ret->flash_erase_cnt, 50, "%ld", fc->erase_cnt);
     snprintf(ret->write_amplification_factor, 50, "%lf", waf);
     snprintf(ret->hit_miss_ratio, 50, "%lf", hit_miss_ratio);
     

@@ -424,10 +424,9 @@
 # CMMH custom
 ##
 { 'struct': 'CMMHMetadata',
-  'data': { 'flash-io-latency': 'str',
-            'flash-read-latency': 'str',
-            'flash-write-latency': 'str',
-            'flash-erase-latency': 'str',
+  'data': { 'flash-read-cnt': 'str',
+            'flash-write-cnt': 'str',
+            'flash-erase-cnt': 'str',
             'write-amplification-factor': 'str',
             'hit-miss-ratio': 'str'} }
 
