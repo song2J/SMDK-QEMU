@@ -909,11 +909,11 @@ static bool bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write
     case CMMH_FLASH_CMD_WRITE:
         ret = ssd_write(ssd, &req);
         //cmmh_ftl_log("CMMH: cmm_flash SSD_WRITE [lba: %x, nlb: %x]\n", lba, size);
-    	cmmh_ftl_log("CMMH Write: tt_lat: %ld, req lat: %ld\n", n->tt_lat, req.lat);
+    //	cmmh_ftl_log("CMMH Write: tt_lat: %ld, req lat: %ld\n", n->tt_lat, req.lat);
         break;
     case CMMH_FLASH_CMD_READ:
   //      cmmh_ftl_log("CMMH: cmm_flash SSD_READ [lba: %x, nlb: %x]\n", lba, size);
-    	cmmh_ftl_log("CMMH Read: tt_lat: %ld, req lat: %ld\n", n->tt_lat, req.lat);
+    //	cmmh_ftl_log("CMMH Read: tt_lat: %ld, req lat: %ld\n", n->tt_lat, req.lat);
         ret = ssd_read(ssd, &req);
         break;
     case CMMH_FLASH_CMD_DSM:

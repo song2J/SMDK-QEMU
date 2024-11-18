@@ -867,8 +867,6 @@ static int64_t cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offse
         size        -= fc->page_size - (dpa_offset % fc->page_size);
         dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
     }
-    if(fc->tt_lat)
-    	cmmh_log("CMMH Read lat: %ld\n", fc->tt_lat);
     return fc->start_time + fc->tt_lat;
 }
 static int64_t cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
@@ -924,8 +922,6 @@ static int64_t cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offs
         size        -= fc->page_size - (dpa_offset % fc->page_size);
         dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
     }
-    if(fc->tt_lat)
-    	cmmh_log("CMMH Write lat: %ld\n", fc->tt_lat);
     return fc->start_time + fc->tt_lat;
 }
 
