@@ -36,8 +36,7 @@ gc_thres_pcent_high=95
 FEMU_OPTIONS="-device cxl-type3"
 FEMU_OPTIONS=${FEMU_OPTIONS}",bus=root_port13"
 FEMU_OPTIONS=${FEMU_OPTIONS}",cmm-hybrid-memdev=cmmh0"
-FEMU_OPTIONS=${FEMU_OPTIONS}",is_cmmh=1"
-#FEMU_OPTIONS=${FEMU_OPTIONS}",lsa=cxl-lsa1"
+FEMU_OPTIONS=${FEMU_OPTIONS}",lsa=cxl-lsa1"
 FEMU_OPTIONS=${FEMU_OPTIONS}",id=cxl-cmmh0"
 FEMU_OPTIONS=${FEMU_OPTIONS}",devsz_mb=${ssd_size}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",namespaces=1"
@@ -57,6 +56,7 @@ FEMU_OPTIONS=${FEMU_OPTIONS}",enable_gc_delay=${enable_gc_delay}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",enable_delay_emu=${enable_emu_delay}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",cache_index_bits=${cache_index_bits}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",cache_num_tag=${cache_num_tag}"
+FEMU_OPTIONS=${FEMU_OPTIONS}",cache_policy=2"
 
 echo ${FEMU_OPTIONS}
 QEMU_PATH=${BASEDIR}/lib/qemu/
@@ -92,4 +92,5 @@ sudo ${QEMU_SYSTEM_BINARY} \
     -device pxb-cxl,bus_nr=12,bus=pcie.0,id=cxl.1 \
     -device cxl-rp,port=0,bus=cxl.1,id=root_port13,chassis=0,slot=2 \
     -object memory-backend-file,id=cmmh0,share=on,mem-path=/tmp/vcmmh.raw,size=12G \
-	${FEMU_OPTIONS} 
+    -object memory-backend-file,id=cxl-lsa1,share=on,mem-path=/tmp/vlsa.raw,size=1G \
+	${FEMU_OPTIONS}

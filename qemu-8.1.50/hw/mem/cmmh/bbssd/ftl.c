@@ -895,7 +895,7 @@ static void bbssd_init_stat(CMMHFlashCtrl *n){
     ssd->tot_read_lat = 0;
     ssd->tot_write_lat = 0;
     ssd->tot_erase_lat = 0;
-    return ret;
+    return;
 }
 static bool bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write){
     struct ssd *ssd = n->ssd;
