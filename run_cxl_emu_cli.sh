@@ -22,7 +22,6 @@ if [ ! -f "${IMAGE_PATH}" ]; then
 fi
 
 sudo ${QEMU_SYSTEM_BINARY} \
-	-enable-kvm \
     -smp 6 \
     -numa node,cpus=0-5,memdev=mem0,nodeid=0 \
     -object memory-backend-ram,id=mem0,size=8G \

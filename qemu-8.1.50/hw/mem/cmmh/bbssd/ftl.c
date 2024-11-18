@@ -811,8 +811,8 @@ static bool ssd_read(struct ssd *ssd, CMMHFlashRequest *req)
         srd.stime = req->stime;
         sublat = ssd_advance_status(ssd, &ppa, &srd);
         maxlat = (sublat > maxlat) ? sublat : maxlat;
-        req->lat += maxlat;
     }
+    req->lat = maxlat;
     return ret;
 }
 
@@ -866,8 +866,8 @@ static bool ssd_write(struct ssd *ssd, CMMHFlashRequest *req)
         /* get latency statistics */
         curlat = ssd_advance_status(ssd, &ppa, &swr);
         maxlat = (curlat > maxlat) ? curlat : maxlat;
-        req->lat += maxlat;
     }
+    req->lat = maxlat;
 
     return true;
 }
@@ -885,6 +885,7 @@ static void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashReq
         req->opcode = CMMH_FLASH_CMD_READ;
     req->slba = lba;
     req->nlb = size;
+    req->stime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     req->lat = 0;
 }
 
@@ -906,11 +907,13 @@ static bool bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write
     bool ret;
     switch (req.opcode) {
     case CMMH_FLASH_CMD_WRITE:
-        cmmh_ftl_log("CMMH: cmm_flash SSD_WRITE [lba: %x, nlb: %x]\n", lba, size);
         ret = ssd_write(ssd, &req);
+        //cmmh_ftl_log("CMMH: cmm_flash SSD_WRITE [lba: %x, nlb: %x]\n", lba, size);
+    	cmmh_ftl_log("CMMH Write: tt_lat: %ld, req lat: %ld\n", n->tt_lat, req.lat);
         break;
     case CMMH_FLASH_CMD_READ:
-        cmmh_ftl_log("CMMH: cmm_flash SSD_READ [lba: %x, nlb: %x]\n", lba, size);
+  //      cmmh_ftl_log("CMMH: cmm_flash SSD_READ [lba: %x, nlb: %x]\n", lba, size);
+    	cmmh_ftl_log("CMMH Read: tt_lat: %ld, req lat: %ld\n", n->tt_lat, req.lat);
         ret = ssd_read(ssd, &req);
         break;
     case CMMH_FLASH_CMD_DSM:
