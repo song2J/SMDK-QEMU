@@ -834,7 +834,7 @@ static int64_t cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offse
     CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
     CMMHCache* cache = &(ct3d->cmmh.cache);
     uint64_t victim;
-    cmmh_log("READ: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
+  //  cmmh_log("READ: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
 
     CacheLine* res;
     //start time: time
@@ -888,7 +888,7 @@ static int64_t cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offs
     uint64_t victim;
 
     CacheLine* res;
-    cmmh_log("WRITE: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
+//    cmmh_log("WRITE: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
     fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     fc->tt_lat = 0;
 
