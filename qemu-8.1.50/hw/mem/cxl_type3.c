@@ -828,7 +828,7 @@ static void cmmh_ctrl_init(CXLType3Dev *ct3d)
             Fill cache if flash valid
         return latency
 */
-static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
+static int64_t cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
                             uint64_t* data, unsigned size)
 {
     CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
@@ -837,7 +837,9 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
     cmmh_log("READ: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
 
     CacheLine* res;
-
+    //start time: time
+    fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    fc->tt_lat = 0;
     while(1) {
         fc->tot_write_req++;
         res = cache->access(cache, dpa_offset, &victim);
@@ -850,7 +852,6 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
             dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
             continue;
         }
-        
         /* Is there a requested entry inside a Flash? Then, Fill the cache with it */
         if(fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
                                                 fc->page_size / fc->bb_params.secsz, false)) {
@@ -866,8 +867,9 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
         size        -= fc->page_size - (dpa_offset % fc->page_size);
         dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
     }
+    return fc->start_time + fc->tt_lat;
 }
-static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
+static int64_t cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
                             uint64_t data, unsigned size)
 {
     /* 
@@ -887,6 +889,8 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
 
     CacheLine* res;
     cmmh_log("WRITE: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
+    fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    fc->tt_lat = 0;
 
     while(1) {
         fc->tot_write_req++;
@@ -918,6 +922,7 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
         size        -= fc->page_size - (dpa_offset % fc->page_size);
         dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
     }
+    return fc->start_time + fc->tt_lat;
 }
 
 /*
@@ -1478,12 +1483,21 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
         return MEMTX_OK;
     }
 
+    int64_t cmmh_expire;
+
     if(ct3d->hostcmmh) {
         /* TODO: save latency info */
-        cmmh_read(ct3d, as, dpa_offset, attrs, data, size);
+        cmmh_expire = cmmh_read(ct3d, as, dpa_offset, attrs, data, size);
     }
 
-    return address_space_read(as, dpa_offset, attrs, data, size);
+    MemTxResult ret = address_space_read(as, dpa_offset, attrs, data, size);
+    if(ct3d->hostcmmh){
+        while(1){
+            int64_t ctime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+            if(ctime > cmmh_expire) return ret;
+        }
+    }
+    else return ret;
 }
 
 MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
@@ -1509,12 +1523,18 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
     if (sanitize_running(&ct3d->cci)) {
         return MEMTX_OK;
     }
-    
+    int64_t cmmh_expire; 
     if(ct3d->hostcmmh) {
-        cmmh_write(ct3d, as, dpa_offset, attrs, data, size);
+        cmmh_expire = cmmh_write(ct3d, as, dpa_offset, attrs, data, size);
     }
-
-    return address_space_write(as, dpa_offset, attrs, &data, size);
+    MemTxResult ret = address_space_write(as, dpa_offset, attrs, &data, size);
+    if(ct3d->hostcmmh){
+        while(1){
+            int64_t ctime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+            if(ctime > cmmh_expire) return ret;
+        }
+    }
+    else return ret;
 }
 
 void ct3d_reset(DeviceState *dev)

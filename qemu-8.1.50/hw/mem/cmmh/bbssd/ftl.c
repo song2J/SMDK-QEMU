@@ -811,8 +811,8 @@ static bool ssd_read(struct ssd *ssd, CMMHFlashRequest *req)
         srd.stime = req->stime;
         sublat = ssd_advance_status(ssd, &ppa, &srd);
         maxlat = (sublat > maxlat) ? sublat : maxlat;
+        req->lat += maxlat;
     }
-
     return ret;
 }
 
@@ -866,6 +866,7 @@ static bool ssd_write(struct ssd *ssd, CMMHFlashRequest *req)
         /* get latency statistics */
         curlat = ssd_advance_status(ssd, &ppa, &swr);
         maxlat = (curlat > maxlat) ? curlat : maxlat;
+        req->lat += maxlat;
     }
 
     return true;
@@ -884,6 +885,7 @@ static void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashReq
         req->opcode = CMMH_FLASH_CMD_READ;
     req->slba = lba;
     req->nlb = size;
+    req->lat = 0;
 }
 
 static void bbssd_init_stat(CMMHFlashCtrl *n){
@@ -926,6 +928,9 @@ static bool bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write
     n->tot_read_lat = ssd->tot_read_lat;
     n->tot_write_lat = ssd->tot_write_lat;
     n->tot_erase_lat = ssd->tot_erase_lat;
+
+    /* latency */
+    n->tt_lat += req.lat;
     return ret;
 }
 /* bb <=> black-box */
