@@ -3,7 +3,7 @@
 
 #include "./nvme.h"
 
-#include "qapi/qapi-commands-cxl.h"
+#include "qapi/qapi-commands-femu.h"
 #include "qapi/error.h"
 
 #define NVME_SPEC_VER (0x00010400)
