@@ -687,7 +687,7 @@ static Property femu_props[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-FemuRWECount qmp_femu_get_ssd_rwe_count(const char *path,
+FemuRWECount* qmp_femu_get_ssd_rwe_count(const char *path,
                             Error **errp)
 {
     Object *obj = object_resolve_path(path, NULL);

@@ -209,9 +209,9 @@ struct ssd {
     bool *dataplane_started_ptr;
     QemuThread ftl_thread;
 
-    uint32_t        read_cnt;
-    uint32_t        write_cnt;
-    uint32_t        erase_cnt;
+    uint32_t        read_count;
+    uint32_t        write_count;
+    uint32_t        erase_count;
 };
 
 void ssd_init(FemuCtrl *n);
