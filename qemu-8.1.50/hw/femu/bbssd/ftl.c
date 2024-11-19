@@ -360,6 +360,24 @@ static void ssd_init_rmap(struct ssd *ssd)
     }
 }
 
+static uint64_t get_read_count(FemuCtrl *fc)
+{
+    struct ssd *ssd = fc->ssd;
+    return ssd->read_count;
+}
+
+static uint64_t get_write_count(FemuCtrl *fc)
+{
+    struct ssd *ssd = fc->ssd;
+    return ssd->write_count;
+}
+
+static uint64_t get_erase_count(FemuCtrl *fc)
+{
+    struct ssd *ssd = fc->ssd;
+    return ssd->erase_count;
+}
+
 void ssd_init(FemuCtrl *n)
 {
     struct ssd *ssd = n->ssd;
@@ -390,6 +408,10 @@ void ssd_init(FemuCtrl *n)
     ssd->write_count = 0;
     ssd->read_count = 0;
     ssd->erase_count = 0;
+
+    n->get_read_count = get_read_count;
+    n->get_write_count = get_write_count;
+    n->get_erase_count = get_erase_count;
 
     qemu_thread_create(&ssd->ftl_thread, "FEMU-FTL-Thread", ftl_thread, n,
                        QEMU_THREAD_JOINABLE);
