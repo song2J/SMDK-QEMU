@@ -709,8 +709,8 @@ FemuRWECount* qmp_femu_get_ssd_rwe_count(const char *path,
     ret->ssd_erase_count = g_new0(char, 50);
 
     snprintf(ret->ssd_read_count, 50, "%ld", fc->get_read_count(fc));
-    snprintf(ret->ssd_write_count, 50, "%ld", fc>get_write_count(fc));
-    snprintf(ret->ssd_erase_count, 50, "%ld", fc>get_erase_count(fc));
+    snprintf(ret->ssd_write_count, 50, "%ld", fc->get_write_count(fc));
+    snprintf(ret->ssd_erase_count, 50, "%ld", fc->get_erase_count(fc));
 
     return ret;
 }
