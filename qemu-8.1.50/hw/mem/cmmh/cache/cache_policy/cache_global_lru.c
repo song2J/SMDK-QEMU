@@ -199,7 +199,6 @@ static void cache_fill(CMMHCache* cc, CacheLine* cn, uint64_t dpa)
 
 static CacheLine *cache_advance_valid_line(CMMHCache *cc, CacheLine *cn)
 {
-    GlobalLRUCache *table = cc->table;
     CacheLine *ret = get_next_lru_line(cn);
     while(ret && !ret->valid)
         ret = get_next_lru_line(ret);

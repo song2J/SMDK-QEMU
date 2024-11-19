@@ -360,6 +360,24 @@ static void ssd_init_rmap(struct ssd *ssd)
     }
 }
 
+static uint64_t get_read_count(FemuCtrl *fc)
+{
+    struct ssd *ssd = fc->ssd;
+    return ssd->read_count;
+}
+
+static uint64_t get_write_count(FemuCtrl *fc)
+{
+    struct ssd *ssd = fc->ssd;
+    return ssd->write_count;
+}
+
+static uint64_t get_erase_count(FemuCtrl *fc)
+{
+    struct ssd *ssd = fc->ssd;
+    return ssd->erase_count;
+}
+
 void ssd_init(FemuCtrl *n)
 {
     struct ssd *ssd = n->ssd;
@@ -386,6 +404,14 @@ void ssd_init(FemuCtrl *n)
 
     /* initialize write pointer, this is how we allocate new pages for writes */
     ssd_init_write_pointer(ssd);
+
+    ssd->write_count = 0;
+    ssd->read_count = 0;
+    ssd->erase_count = 0;
+
+    n->get_read_count = get_read_count;
+    n->get_write_count = get_write_count;
+    n->get_erase_count = get_erase_count;
 
     qemu_thread_create(&ssd->ftl_thread, "FEMU-FTL-Thread", ftl_thread, n,
                        QEMU_THREAD_JOINABLE);
@@ -471,6 +497,7 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
                      lun->next_lun_avail_time;
         lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
         lat = lun->next_lun_avail_time - cmd_stime;
+        ssd->read_count++;
 #if 0
         lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
 
@@ -493,6 +520,7 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
             lun->next_lun_avail_time = nand_stime + spp->pg_wr_lat;
         }
         lat = lun->next_lun_avail_time - cmd_stime;
+        ssd->write_count++;
 
 #if 0
         chnl_stime = (ch->next_ch_avail_time < cmd_stime) ? cmd_stime : \
@@ -515,6 +543,7 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         lun->next_lun_avail_time = nand_stime + spp->blk_er_lat;
 
         lat = lun->next_lun_avail_time - cmd_stime;
+        ssd->erase_count++;
         break;
 
     default:

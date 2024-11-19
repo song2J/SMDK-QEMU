@@ -208,6 +208,10 @@ struct ssd {
     struct rte_ring **to_poller;
     bool *dataplane_started_ptr;
     QemuThread ftl_thread;
+
+    uint64_t        read_count;
+    uint64_t        write_count;
+    uint64_t        erase_count;
 };
 
 void ssd_init(FemuCtrl *n);
