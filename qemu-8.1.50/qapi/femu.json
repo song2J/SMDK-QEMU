@@ -17,13 +17,12 @@
 
 
 ##
-# @femu-get-ssd-rwe-count
+# @femu-get-ssd-rwe-count:
 #
 # Command to get a read/write/erase count
 #
 # @path: FEMU SSD device canonical QOM path
 #
-# Since: 8.1
 ##
 { 'command': 'femu-get-ssd-rwe-count',
   'data': { 'path': 'str'},
