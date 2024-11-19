@@ -828,16 +828,18 @@ static void cmmh_ctrl_init(CXLType3Dev *ct3d)
             Fill cache if flash valid
         return latency
 */
-static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
+static int64_t cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
                             uint64_t* data, unsigned size)
 {
     CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
     CMMHCache* cache = &(ct3d->cmmh.cache);
     uint64_t victim;
-    cmmh_log("READ: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
+  //  cmmh_log("READ: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
 
     CacheLine* res;
-
+    //start time: time
+    fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    fc->tt_lat = 0;
     while(1) {
         fc->tot_write_req++;
         res = cache->access(cache, dpa_offset, &victim);
@@ -850,7 +852,6 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
             dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
             continue;
         }
-        
         /* Is there a requested entry inside a Flash? Then, Fill the cache with it */
         if(fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
                                                 fc->page_size / fc->bb_params.secsz, false)) {
@@ -866,8 +867,9 @@ static void cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, 
         size        -= fc->page_size - (dpa_offset % fc->page_size);
         dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
     }
+    return fc->start_time + fc->tt_lat;
 }
-static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
+static int64_t cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset, MemTxAttrs attrs,
                             uint64_t data, unsigned size)
 {
     /* 
@@ -886,7 +888,9 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
     uint64_t victim;
 
     CacheLine* res;
-    cmmh_log("WRITE: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
+//    cmmh_log("WRITE: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
+    fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    fc->tt_lat = 0;
 
     while(1) {
         fc->tot_write_req++;
@@ -918,6 +922,7 @@ static void cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offset,
         size        -= fc->page_size - (dpa_offset % fc->page_size);
         dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
     }
+    return fc->start_time + fc->tt_lat;
 }
 
 /*
@@ -1478,12 +1483,21 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
         return MEMTX_OK;
     }
 
+    int64_t cmmh_expire;
+
     if(ct3d->hostcmmh) {
         /* TODO: save latency info */
-        cmmh_read(ct3d, as, dpa_offset, attrs, data, size);
+        cmmh_expire = cmmh_read(ct3d, as, dpa_offset, attrs, data, size);
     }
 
-    return address_space_read(as, dpa_offset, attrs, data, size);
+    MemTxResult ret = address_space_read(as, dpa_offset, attrs, data, size);
+    if(ct3d->hostcmmh){
+        while(1){
+            int64_t ctime = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            if(ctime >= cmmh_expire) return ret;
+        }
+    }
+    else return ret;
 }
 
 MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
@@ -1509,12 +1523,18 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
     if (sanitize_running(&ct3d->cci)) {
         return MEMTX_OK;
     }
-    
+    int64_t cmmh_expire; 
     if(ct3d->hostcmmh) {
-        cmmh_write(ct3d, as, dpa_offset, attrs, data, size);
+        cmmh_expire = cmmh_write(ct3d, as, dpa_offset, attrs, data, size);
     }
-
-    return address_space_write(as, dpa_offset, attrs, &data, size);
+    MemTxResult ret = address_space_write(as, dpa_offset, attrs, &data, size);
+    if(ct3d->hostcmmh){
+        while(1){
+            int64_t ctime = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            if(ctime >= cmmh_expire) return ret;
+        }
+    }
+    else return ret;
 }
 
 void ct3d_reset(DeviceState *dev)
@@ -2421,10 +2441,6 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     CMMHFlashCtrl *fc = &(ct3d->cmmh.fc);
     CMMHCache *cc = &(ct3d->cmmh.cache);
 
-    uint64_t tot_lat = fc->tot_read_lat \
-                        + fc->tot_write_lat\
-                        + fc->tot_erase_lat;
-    
     uint64_t tot_write = fc->write_cnt * (fc->page_size/sizeof(uint64_t));
     uint64_t tot_write_req = fc->tot_write_req;
     double waf = (tot_write_req != 0)? ((double)tot_write) / tot_write_req: 0;
@@ -2434,17 +2450,15 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
                             : 0;
 
     CMMHMetadata *ret = g_new0(CMMHMetadata, 1);
-    ret->flash_io_latency = g_new0(char, 50);
-    ret->flash_read_latency = g_new0(char, 50);
-    ret->flash_write_latency = g_new0(char, 50);
-    ret->flash_erase_latency = g_new0(char, 50);
+    ret->flash_read_cnt = g_new0(char, 50);
+    ret->flash_write_cnt = g_new0(char, 50);
+    ret->flash_erase_cnt = g_new0(char, 50);
     ret->write_amplification_factor = g_new0(char, 50);
     ret->hit_miss_ratio = g_new0(char, 50);
     
-    snprintf(ret->flash_io_latency, 50, "%ld", tot_lat);
-    snprintf(ret->flash_read_latency, 50, "%ld", fc->tot_read_lat);
-    snprintf(ret->flash_write_latency, 50, "%ld", fc->tot_write_lat);
-    snprintf(ret->flash_erase_latency, 50, "%ld", fc->tot_erase_lat);
+    snprintf(ret->flash_read_cnt, 50, "%ld", fc->read_cnt);
+    snprintf(ret->flash_write_cnt, 50, "%ld", fc->write_cnt);
+    snprintf(ret->flash_erase_cnt, 50, "%ld", fc->erase_cnt);
     snprintf(ret->write_amplification_factor, 50, "%lf", waf);
     snprintf(ret->hit_miss_ratio, 50, "%lf", hit_miss_ratio);
     
