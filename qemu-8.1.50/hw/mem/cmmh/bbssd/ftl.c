@@ -465,7 +465,7 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
 {
     int c = ncmd->cmd;
     uint64_t cmd_stime = (ncmd->stime == 0) ? \
-        qemu_clock_get_ns(QEMU_CLOCK_REALTIME) : ncmd->stime;
+        qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) : ncmd->stime;
     uint64_t nand_stime;
     struct ssdparams *spp = &ssd->sp;
     struct nand_lun *lun = get_lun(ssd, ppa);
@@ -885,7 +885,7 @@ static void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashReq
         req->opcode = CMMH_FLASH_CMD_READ;
     req->slba = lba;
     req->nlb = size;
-    req->stime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    req->stime = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     req->lat = 0;
 }
 

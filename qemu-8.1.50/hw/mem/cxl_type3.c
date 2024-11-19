@@ -838,7 +838,7 @@ static int64_t cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offse
 
     CacheLine* res;
     //start time: time
-    fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     fc->tt_lat = 0;
     while(1) {
         fc->tot_write_req++;
@@ -889,7 +889,7 @@ static int64_t cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offs
 
     CacheLine* res;
 //    cmmh_log("WRITE: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
-    fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     fc->tt_lat = 0;
 
     while(1) {
@@ -1493,7 +1493,7 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
     MemTxResult ret = address_space_read(as, dpa_offset, attrs, data, size);
     if(ct3d->hostcmmh){
         while(1){
-            int64_t ctime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+            int64_t ctime = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
             if(ctime >= cmmh_expire) return ret;
         }
     }
@@ -1530,7 +1530,7 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
     MemTxResult ret = address_space_write(as, dpa_offset, attrs, &data, size);
     if(ct3d->hostcmmh){
         while(1){
-            int64_t ctime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+            int64_t ctime = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
             if(ctime >= cmmh_expire) return ret;
         }
     }
