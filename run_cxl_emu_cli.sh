@@ -29,6 +29,7 @@ sudo ${QEMU_SYSTEM_BINARY} \
     -drive file=${IMAGE_PATH},format=qcow2 \
     -serial mon:stdio \
     -nographic \
+    -rtc clock=vm \
     -device e1000,netdev=net0 \
     -netdev user,id=net0,hostfwd=tcp::2242-:22 \
     -monitor telnet::${MONITOR_PORT},server,nowait \

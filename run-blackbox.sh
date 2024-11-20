@@ -33,13 +33,11 @@ gc_thres_pcent_high=95
 #-----------------------------------------------------------------------
 
 #Compose the entire FEMU BBSSD command line options
-FEMU_OPTIONS="-device cxl-type3"
-FEMU_OPTIONS=${FEMU_OPTIONS}",bus=root_port13"
-FEMU_OPTIONS=${FEMU_OPTIONS}",cmm-hybrid-memdev=cmmh0"
-FEMU_OPTIONS=${FEMU_OPTIONS}",lsa=cxl-lsa1"
-FEMU_OPTIONS=${FEMU_OPTIONS}",id=cxl-cmmh0"
+FEMU_OPTIONS="-device femu"
+FEMU_OPTIONS=${FEMU_OPTIONS}",id=femu-ssd0"
 FEMU_OPTIONS=${FEMU_OPTIONS}",devsz_mb=${ssd_size}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",namespaces=1"
+FEMU_OPTIONS=${FEMU_OPTIONS}",femu_mode=1"
 FEMU_OPTIONS=${FEMU_OPTIONS}",secsz=${secsz}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",secs_per_pg=${secs_per_pg}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",pgs_per_blk=${pgs_per_blk}"
@@ -50,13 +48,9 @@ FEMU_OPTIONS=${FEMU_OPTIONS}",nchs=${nchs}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",pg_rd_lat=${pg_rd_lat}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",pg_wr_lat=${pg_wr_lat}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",blk_er_lat=${blk_er_lat}"
+FEMU_OPTIONS=${FEMU_OPTIONS}",ch_xfer_lat=${ch_xfer_lat}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",gc_thres_pcent=${gc_thres_pcent}"
 FEMU_OPTIONS=${FEMU_OPTIONS}",gc_thres_pcent_high=${gc_thres_pcent_high}"
-FEMU_OPTIONS=${FEMU_OPTIONS}",enable_gc_delay=${enable_gc_delay}"
-FEMU_OPTIONS=${FEMU_OPTIONS}",enable_delay_emu=${enable_emu_delay}"
-FEMU_OPTIONS=${FEMU_OPTIONS}",cache_index_bits=${cache_index_bits}"
-FEMU_OPTIONS=${FEMU_OPTIONS}",cache_num_tag=${cache_num_tag}"
-FEMU_OPTIONS=${FEMU_OPTIONS}",cache_policy=2"
 
 echo ${FEMU_OPTIONS}
 QEMU_PATH=${BASEDIR}/lib/qemu/
@@ -76,10 +70,8 @@ if [ ! -f "${IMAGE_PATH}" ]; then
     exit 2
 fi
 
-LSA_PATH=/tmp/vlsa.raw
-
-sudo rm ${LSA_PATH}
 sudo ${QEMU_SYSTEM_BINARY} \
+    -enable-kvm \
     -smp 6 \
     -numa node,cpus=0-5,memdev=mem0,nodeid=0 \
     -object memory-backend-ram,id=mem0,size=8G \
@@ -87,14 +79,8 @@ sudo ${QEMU_SYSTEM_BINARY} \
     -drive file=${IMAGE_PATH},format=qcow2\
     -serial mon:stdio \
     -nographic \
-    -rtc clock=vm \
     -device e1000,netdev=net0 \
     -netdev user,id=net0,hostfwd=tcp::8080-:22 \
     -qmp tcp:localhost:18080,server,nowait \
     -machine q35,cxl=on \
-    -M cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=16G \
-    -device pxb-cxl,bus_nr=12,bus=pcie.0,id=cxl.1 \
-    -device cxl-rp,port=0,bus=cxl.1,id=root_port13,chassis=0,slot=2 \
-    -object memory-backend-file,id=cmmh0,share=on,mem-path=/tmp/vcmmh.raw,size=12G \
-    -object memory-backend-file,id=cxl-lsa1,share=on,mem-path=${LSA_PATH},size=1G \
-	${FEMU_OPTIONS}
+    ${FEMU_OPTIONS} \

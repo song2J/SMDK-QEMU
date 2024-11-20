@@ -838,7 +838,6 @@ static int64_t cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offse
 
     CacheLine* res;
     //start time: time
-    fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     fc->tt_lat = 0;
     while(1) {
         fc->tot_write_req++;
@@ -852,6 +851,7 @@ static int64_t cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offse
             dpa_offset  += fc->page_size - (dpa_offset % fc->page_size);
             continue;
         }
+    	fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
         /* Is there a requested entry inside a Flash? Then, Fill the cache with it */
         if(fc->flash_ops.ftl_io(fc, (dpa_offset / fc->page_size * fc->bb_params.secs_per_pg), 
                                                 fc->page_size / fc->bb_params.secsz, false)) {
@@ -889,7 +889,6 @@ static int64_t cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offs
 
     CacheLine* res;
 //    cmmh_log("WRITE: [dpa offset: %ld, size: %d]\n",dpa_offset, size);
-    fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     fc->tt_lat = 0;
 
     while(1) {
@@ -907,6 +906,7 @@ static int64_t cmmh_write(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offs
         }
         
         /* Flush phase: Is the evicted data dirty? */
+    	fc->start_time = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
         if(res->valid && res->dirty)
             fc->flash_ops.ftl_io(fc, (victim / fc->page_size * fc->bb_params.secs_per_pg), 
                                             fc->page_size / fc->bb_params.secsz, true);
@@ -1490,11 +1490,16 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
         cmmh_expire = cmmh_read(ct3d, as, dpa_offset, attrs, data, size);
     }
 
+    bool stored = false;
     MemTxResult ret = address_space_read(as, dpa_offset, attrs, data, size);
     if(ct3d->hostcmmh){
         while(1){
-            int64_t ctime = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            int64_t ctime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
             if(ctime >= cmmh_expire) return ret;
+	    if(!stored){
+		    stored=true;
+		    ct3d->cmmh.fc.tot_read_lat += cmmh_expire - ctime;
+	    }
         }
     }
     else return ret;
@@ -1508,6 +1513,7 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
     uint64_t dpa_offset = 0;
     AddressSpace *as = NULL;
     int res;
+    bool stored = false;
 
     res = cxl_type3_hpa_to_as_and_dpa(ct3d, host_addr, size,
                                       &as, &dpa_offset);
@@ -1530,8 +1536,12 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
     MemTxResult ret = address_space_write(as, dpa_offset, attrs, &data, size);
     if(ct3d->hostcmmh){
         while(1){
-            int64_t ctime = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            int64_t ctime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
             if(ctime >= cmmh_expire) return ret;
+	    if(!stored){
+		    stored=true;
+		    ct3d->cmmh.fc.tot_write_lat += cmmh_expire - ctime;
+	    }
         }
     }
     else return ret;
@@ -2455,12 +2465,17 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     ret->flash_erase_cnt = g_new0(char, 50);
     ret->write_amplification_factor = g_new0(char, 50);
     ret->hit_miss_ratio = g_new0(char, 50);
+    ret->tot_read_lat = g_new0(char, 50);
+    ret->tot_write_lat = g_new0(char, 50);
+
     
     snprintf(ret->flash_read_cnt, 50, "%ld", fc->read_cnt);
     snprintf(ret->flash_write_cnt, 50, "%ld", fc->write_cnt);
     snprintf(ret->flash_erase_cnt, 50, "%ld", fc->erase_cnt);
     snprintf(ret->write_amplification_factor, 50, "%lf", waf);
     snprintf(ret->hit_miss_ratio, 50, "%lf", hit_miss_ratio);
+    snprintf(ret->tot_read_lat, 50, "%ld", fc->tot_read_lat);
+    snprintf(ret->tot_write_lat, 50, "%ld", fc->tot_write_lat);
     
     return ret;
 }

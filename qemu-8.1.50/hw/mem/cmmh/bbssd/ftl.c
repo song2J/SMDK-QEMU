@@ -465,7 +465,7 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
 {
     int c = ncmd->cmd;
     uint64_t cmd_stime = (ncmd->stime == 0) ? \
-        qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) : ncmd->stime;
+        qemu_clock_get_ns(QEMU_CLOCK_REALTIME) : ncmd->stime;
     uint64_t nand_stime;
     struct ssdparams *spp = &ssd->sp;
     struct nand_lun *lun = get_lun(ssd, ppa);
@@ -479,7 +479,6 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
         lat = lun->next_lun_avail_time - cmd_stime;
         ssd->read_cnt ++;
-        ssd->tot_read_lat += lat;
 #if 0
         lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
 
@@ -503,7 +502,6 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         }
         lat = lun->next_lun_avail_time - cmd_stime;
         ssd->write_cnt ++;
-        ssd->tot_write_lat += lat;
 
 #if 0
         chnl_stime = (ch->next_ch_avail_time < cmd_stime) ? cmd_stime : \
@@ -526,7 +524,7 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         lun->next_lun_avail_time = nand_stime + spp->blk_er_lat;
 
         lat = lun->next_lun_avail_time - cmd_stime;
-        ssd->tot_erase_lat += lat;
+        ssd->erase_cnt ++;
         break;
 
     default:
@@ -885,7 +883,7 @@ static void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashReq
         req->opcode = CMMH_FLASH_CMD_READ;
     req->slba = lba;
     req->nlb = size;
-    req->stime = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    req->stime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     req->lat = 0;
 }
 
@@ -928,9 +926,6 @@ static bool bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write
     n->write_cnt = ssd->write_cnt;
     n->erase_cnt = ssd->erase_cnt;
 
-    n->tot_read_lat = ssd->tot_read_lat;
-    n->tot_write_lat = ssd->tot_write_lat;
-    n->tot_erase_lat = ssd->tot_erase_lat;
 
     /* latency */
     n->tt_lat += req.lat;

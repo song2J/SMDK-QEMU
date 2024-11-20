@@ -427,6 +427,8 @@
   'data': { 'flash-read-cnt': 'str',
             'flash-write-cnt': 'str',
             'flash-erase-cnt': 'str',
+            'tot-read-lat': 'str',
+            'tot-write-lat': 'str',
             'write-amplification-factor': 'str',
             'hit-miss-ratio': 'str'} }
 
