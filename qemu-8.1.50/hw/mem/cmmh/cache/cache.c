@@ -13,6 +13,7 @@ void cmmh_cache_init(CMMHCache *cc, uint16_t pg_bits)
         break;
     case DIP:
         cmmh_cache_dip_init(cc);
+        break;
     default:
         cmmh_cache_local_lru_init(cc);
     }
