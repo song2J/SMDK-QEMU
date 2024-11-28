@@ -257,7 +257,7 @@ static CacheLine *cache_get_valid_head_line(CMMHCache *cc)
 }
 
 
-void cmmh_cache_global_lru_init(CMMHCache *cc)
+void cmmh_cache_dip_init(CMMHCache *cc)
 {
     //cmmh_cache_log("%s, CMMH Cache initialization [Entered]!\n", "CACHYEE");
 
