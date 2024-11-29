@@ -21,7 +21,7 @@ typedef struct CacheLine {
 typedef enum{
     LOCAL_LRU = 1,
     GLOBAL_LRU,
-    SKIPLIST
+    DIP
 } CachePolicy;
 
 typedef struct CMMHCache {
@@ -48,6 +48,7 @@ extern void cmmh_cache_init(CMMHCache *cc, uint16_t pg_bits);
 
 extern void cmmh_cache_local_lru_init(CMMHCache* cc); 
 extern void cmmh_cache_global_lru_init(CMMHCache* cc); 
+extern void cmmh_cache_dip_init(CMMHCache* cc); 
 
 #define cmmh_cache_err(fmt, ...) \
     do { fprintf(stderr, "[CMMH] Cache-Err: " fmt, ## __VA_ARGS__); } while (0)

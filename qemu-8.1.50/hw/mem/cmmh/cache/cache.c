@@ -11,6 +11,9 @@ void cmmh_cache_init(CMMHCache *cc, uint16_t pg_bits)
     case GLOBAL_LRU:
         cmmh_cache_global_lru_init(cc);
         break;
+    case DIP:
+        cmmh_cache_dip_init(cc);
+        break;
     default:
         cmmh_cache_local_lru_init(cc);
     }
