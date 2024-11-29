@@ -38,7 +38,8 @@ typedef struct CMMHFlashRequest {
     uint8_t                 opcode;
     /* position in the priority queue for delay emulation */
     size_t                  pos;
-    int64_t                 stime;
+    uint64_t                 stime;
+    uint64_t                 lat;
 } CMMHFlashRequest;
 
 /* do NOT go beyound 256 (uint8_t) */
@@ -65,7 +66,8 @@ typedef struct BbCtrlParams {
 
 typedef struct CMMHFlashCtrl {
 
-    time_t      start_time;
+    int64_t      start_time;
+    int64_t      tt_lat;
     /* NEW features*/
     uint8_t     enable_gc_delay;
     uint8_t     enable_delay_emu;
@@ -96,8 +98,9 @@ typedef struct CMMHFlashCtrl {
     /* Nand Flash Type: SLC/MLC/TLC/QLC/PLC */
     uint8_t         flash_type;
     struct {
-        uint64_t    (*ftl_io)(struct CMMHFlashCtrl*, uint64_t, int, bool);
+        bool    (*ftl_io)(struct CMMHFlashCtrl*, uint64_t, int, bool);
         void        (*init)(struct CMMHFlashCtrl*);
+        void        (*init_stat)(struct CMMHFlashCtrl*);
     } flash_ops;
     /* Status Cnt */
     uint32_t        read_cnt;

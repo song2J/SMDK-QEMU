@@ -3,6 +3,9 @@
 
 #include "./nvme.h"
 
+#include "qapi/qapi-commands-femu.h"
+#include "qapi/error.h"
+
 #define NVME_SPEC_VER (0x00010400)
 
 static void nvme_clear_ctrl(FemuCtrl *n, bool shutdown)
@@ -683,6 +686,34 @@ static Property femu_props[] = {
     DEFINE_PROP_INT32("gc_thres_pcent_high", FemuCtrl, bb_params.gc_thres_pcent_high, 95),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+FemuRWECount* qmp_femu_get_ssd_rwe_count(const char *path,
+                            Error **errp)
+{
+    Object *obj = object_resolve_path(path, NULL);
+    if (!obj) {
+        error_setg(errp, "Unable to resolve path");
+        return NULL;
+    }
+    if (!object_dynamic_cast(obj, TYPE_NVME)) {
+        error_setg(errp, "Path not point to a valid NVMe device");
+        return NULL;
+    }
+
+    FemuCtrl *fc = FEMU(obj);
+
+    FemuRWECount *ret = g_new0(FemuRWECount, 1);
+
+    ret->ssd_read_count = g_new0(char, 50);
+    ret->ssd_write_count = g_new0(char, 50);
+    ret->ssd_erase_count = g_new0(char, 50);
+
+    snprintf(ret->ssd_read_count, 50, "%ld", fc->get_read_count(fc));
+    snprintf(ret->ssd_write_count, 50, "%ld", fc->get_write_count(fc));
+    snprintf(ret->ssd_erase_count, 50, "%ld", fc->get_erase_count(fc));
+
+    return ret;
+}
 
 static const VMStateDescription femu_vmstate = {
     .name = "femu",

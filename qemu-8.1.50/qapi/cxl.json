@@ -424,7 +424,11 @@
 # CMMH custom
 ##
 { 'struct': 'CMMHMetadata',
-  'data': { 'flash-io-latency': 'str',
+  'data': { 'flash-read-cnt': 'str',
+            'flash-write-cnt': 'str',
+            'flash-erase-cnt': 'str',
+            'tot-read-lat': 'str',
+            'tot-write-lat': 'str',
             'write-amplification-factor': 'str',
             'hit-miss-ratio': 'str'} }
 
@@ -440,5 +444,31 @@
 { 'command': 'cxl-get-cmmh-metadata',
   'data': { 'path': 'str'},
   'returns': 'CMMHMetadata'
+}
+
+##
+# @cxl-cmmh-flush-cache:
+#
+# Command to flush all the valid dirty data from cache to NAND Flash
+#
+# @path: CXL type 3 device canonical QOM path
+#
+# CMMH custom
+##
+{ 'command': 'cxl-cmmh-flush-cache',
+  'data': { 'path': 'str'}
+}
+
+##
+# @cxl-init-cmmh-stat:
+#
+# Command to init all stat data to 0
+#
+# @path: CXL type 3 device canonical QOM path
+#
+# CMMH custom
+##
+{ 'command': 'cxl-init-cmmh-stat',
+  'data': { 'path': 'str'}
 }
 

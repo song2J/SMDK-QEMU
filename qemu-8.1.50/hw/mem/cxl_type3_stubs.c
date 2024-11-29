@@ -71,3 +71,16 @@ void qmp_cxl_release_dynamic_capacity(const char *path,
 {
     error_setg(errp, "CXL Type 3 support is not compiled in");
 }
+
+CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
+                                Error **errp)
+{
+    error_setg(errp, "CXL Type 3 support is not compiled in");
+    return NULL;
+}
+
+void qmp_cxl_cmmh_flush_cache(const char *path,
+                                Error **errp)
+{
+    error_setg(errp, "CXL Type 3 support is not compiled in");
+}

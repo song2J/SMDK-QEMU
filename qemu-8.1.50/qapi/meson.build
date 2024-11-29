@@ -34,6 +34,7 @@ qapi_all_modules = [
   'cxl',
   'dump',
   'error',
+  'femu',
   'introspect',
   'job',
   'machine',

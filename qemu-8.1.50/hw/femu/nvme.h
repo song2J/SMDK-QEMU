@@ -1359,6 +1359,11 @@ typedef struct FemuCtrl {
 
     /* Nand Flash Type: SLC/MLC/TLC/QLC/PLC */
     uint8_t         flash_type;
+
+    uint64_t (*get_read_count)(struct FemuCtrl*);
+    uint64_t (*get_write_count)(struct FemuCtrl*);
+    uint64_t (*get_erase_count)(struct FemuCtrl*);
+
 } FemuCtrl;
 
 typedef struct NvmePollerThreadArgument {

@@ -1,6 +1,8 @@
 #include "ftl.h"
 
 //#define CMMH_FLASH_DEBUG_FTL
+#define SUCCESS 0
+#define FAIL 1
 
 static inline bool should_gc(struct ssd *ssd)
 {
@@ -477,7 +479,6 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
         lat = lun->next_lun_avail_time - cmd_stime;
         ssd->read_cnt ++;
-        ssd->tot_read_lat += lat;
 #if 0
         lun->next_lun_avail_time = nand_stime + spp->pg_rd_lat;
 
@@ -501,7 +502,6 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
         }
         lat = lun->next_lun_avail_time - cmd_stime;
         ssd->write_cnt ++;
-        ssd->tot_write_lat += lat;
 
 #if 0
         chnl_stime = (ch->next_ch_avail_time < cmd_stime) ? cmd_stime : \
@@ -525,7 +525,6 @@ static uint64_t ssd_advance_status(struct ssd *ssd, struct ppa *ppa, struct
 
         lat = lun->next_lun_avail_time - cmd_stime;
         ssd->erase_cnt ++;
-        ssd->tot_erase_lat += lat;
         break;
 
     default:
@@ -622,7 +621,6 @@ static void mark_block_free(struct ssd *ssd, struct ppa *ppa)
     ftl_assert(blk->npgs == spp->pgs_per_blk);
     blk->ipc = 0;
     blk->vpc = 0;
-    blk->erase_cnt++;
 }
 
 static void gc_read_page(struct ssd *ssd, struct ppa *ppa)
@@ -635,7 +633,6 @@ static void gc_read_page(struct ssd *ssd, struct ppa *ppa)
         gcr.stime = 0;
         ssd_advance_status(ssd, ppa, &gcr);
     }
-    ssd->read_cnt ++;
 }
 
 /* move valid page data (already in DRAM) from victim line to a new page */
@@ -779,7 +776,7 @@ static int do_gc(struct ssd *ssd, bool force)
     return 0;
 }
 
-static uint64_t ssd_read(struct ssd *ssd, CMMHFlashRequest *req)
+static bool ssd_read(struct ssd *ssd, CMMHFlashRequest *req)
 {
     struct ssdparams *spp = &ssd->sp;
     uint64_t lba = req->slba;
@@ -794,6 +791,7 @@ static uint64_t ssd_read(struct ssd *ssd, CMMHFlashRequest *req)
         cmmh_ftl_err("start_lpn=%"PRIu64",tt_pgs=%d\n", start_lpn, ssd->sp.tt_pgs);
     }
 
+    uint32_t ret = false;
     /* normal IO read path */
     for (lpn = start_lpn; lpn <= end_lpn; lpn++) {
         ppa = get_maptbl_ent(ssd, lpn);
@@ -804,6 +802,7 @@ static uint64_t ssd_read(struct ssd *ssd, CMMHFlashRequest *req)
             continue;
         }
 
+        ret = true; //at least 1 page is valid
         struct nand_cmd srd;
         srd.type = USER_IO;
         srd.cmd = NAND_READ;
@@ -811,11 +810,11 @@ static uint64_t ssd_read(struct ssd *ssd, CMMHFlashRequest *req)
         sublat = ssd_advance_status(ssd, &ppa, &srd);
         maxlat = (sublat > maxlat) ? sublat : maxlat;
     }
-
-    return maxlat;
+    req->lat = maxlat;
+    return ret;
 }
 
-static uint64_t ssd_write(struct ssd *ssd, CMMHFlashRequest *req)
+static bool ssd_write(struct ssd *ssd, CMMHFlashRequest *req)
 {
     uint64_t lba = req->slba;
     struct ssdparams *spp = &ssd->sp;
@@ -866,8 +865,9 @@ static uint64_t ssd_write(struct ssd *ssd, CMMHFlashRequest *req)
         curlat = ssd_advance_status(ssd, &ppa, &swr);
         maxlat = (curlat > maxlat) ? curlat : maxlat;
     }
+    req->lat = maxlat;
 
-    return maxlat;
+    return true;
 }
 
 /*
@@ -883,24 +883,39 @@ static void bbssd_cmd_to_req(uint64_t lba, int size, bool is_write, CMMHFlashReq
         req->opcode = CMMH_FLASH_CMD_READ;
     req->slba = lba;
     req->nlb = size;
+    req->stime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    req->lat = 0;
 }
 
-static uint64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write){
+static void bbssd_init_stat(CMMHFlashCtrl *n){
+    struct ssd *ssd = n->ssd;
+    ssd->read_cnt = 0;
+    ssd->write_cnt = 0;
+    ssd->erase_cnt = 0;
+
+    ssd->tot_read_lat = 0;
+    ssd->tot_write_lat = 0;
+    ssd->tot_erase_lat = 0;
+    return;
+}
+static bool bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_write){
     struct ssd *ssd = n->ssd;
     CMMHFlashRequest req;
     bbssd_cmd_to_req(lba, size, is_write, &req);
-    uint64_t lat;
+    bool ret;
     switch (req.opcode) {
     case CMMH_FLASH_CMD_WRITE:
-        cmmh_ftl_log("CMMH: cmm_flash SSD_WRITE\n");
-        lat = ssd_write(ssd, &req);
+        ret = ssd_write(ssd, &req);
+        //cmmh_ftl_log("CMMH: cmm_flash SSD_WRITE [lba: %x, nlb: %x]\n", lba, size);
+    //	cmmh_ftl_log("CMMH Write: tt_lat: %ld, req lat: %ld\n", n->tt_lat, req.lat);
         break;
     case CMMH_FLASH_CMD_READ:
-        cmmh_ftl_log("CMMH: cmm_flash SSD_READ\n");
-        lat = ssd_read(ssd, &req);
+  //      cmmh_ftl_log("CMMH: cmm_flash SSD_READ [lba: %x, nlb: %x]\n", lba, size);
+    //	cmmh_ftl_log("CMMH Read: tt_lat: %ld, req lat: %ld\n", n->tt_lat, req.lat);
+        ret = ssd_read(ssd, &req);
         break;
     case CMMH_FLASH_CMD_DSM:
-        lat = 0;
+        ret = 0;
         break;
     default:
         //ftl_err("FTL received unkown request type, ERROR\n");
@@ -911,10 +926,10 @@ static uint64_t bbssd_ftl_io(CMMHFlashCtrl* n, uint64_t lba, int size, bool is_w
     n->write_cnt = ssd->write_cnt;
     n->erase_cnt = ssd->erase_cnt;
 
-    n->tot_read_lat = ssd->tot_read_lat;
-    n->tot_write_lat = ssd->tot_write_lat;
-    n->tot_erase_lat = ssd->tot_erase_lat;
-    return lat;
+
+    /* latency */
+    n->tt_lat += req.lat;
+    return ret;
 }
 /* bb <=> black-box */
 static void bb_init(CMMHFlashCtrl *n)
@@ -948,7 +963,7 @@ static void bb_init(CMMHFlashCtrl *n)
     n->page_size = (uint16_t)(ssd->sp.secsz * ssd->sp.secs_per_pg);
     n->page_bits = 0;
     uint16_t pg_size = n->page_size;
-    while(pg_size){
+    while(pg_size > 1){
         pg_size = pg_size >> 1;
         n->page_bits++;
     }
@@ -964,6 +979,7 @@ static void bb_init(CMMHFlashCtrl *n)
 }
 
 void cmmh_register_bb_flash_ops(CMMHFlashCtrl* n){
-    n->flash_ops.ftl_io=bbssd_ftl_io;
-    n->flash_ops.init=bb_init;
+    n->flash_ops.ftl_io = bbssd_ftl_io;
+    n->flash_ops.init = bb_init;
+    n->flash_ops.init_stat = bbssd_init_stat;
 }
