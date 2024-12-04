@@ -430,7 +430,8 @@
             'tot-read-lat': 'str',
             'tot-write-lat': 'str',
             'write-amplification-factor': 'str',
-            'hit-miss-ratio': 'str'} }
+            'hit-miss-ratio': 'str',
+            'hit-miss-byte-ratio': 'str'} }
 
 ##
 # @cxl-get-cmmh-metadata:

@@ -2458,6 +2458,9 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     double hit_miss_ratio = (cc->cache_hit + cc->cache_miss != 0)? \
                             ((double)cc->cache_hit) / (cc->cache_hit + cc->cache_miss)\
                             : 0;
+    double hit_miss_byte_ratio = (cc->cache_hit + cc->cache_miss != 0)? \
+                            ((double)cc->cache_hit) / (cc->cache_hit + cc->cache_miss * 512)\
+                            : 0;
 
     CMMHMetadata *ret = g_new0(CMMHMetadata, 1);
     ret->flash_read_cnt = g_new0(char, 50);
@@ -2465,6 +2468,7 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     ret->flash_erase_cnt = g_new0(char, 50);
     ret->write_amplification_factor = g_new0(char, 50);
     ret->hit_miss_ratio = g_new0(char, 50);
+    ret->hit_miss_byte_ratio = g_new0(char, 50);
     ret->tot_read_lat = g_new0(char, 50);
     ret->tot_write_lat = g_new0(char, 50);
 
@@ -2474,6 +2478,7 @@ CMMHMetadata *qmp_cxl_get_cmmh_metadata(const char *path,
     snprintf(ret->flash_erase_cnt, 50, "%ld", fc->erase_cnt);
     snprintf(ret->write_amplification_factor, 50, "%lf", waf);
     snprintf(ret->hit_miss_ratio, 50, "%lf", hit_miss_ratio);
+    snprintf(ret->hit_miss_byte_ratio, 50, "%lf", hit_miss_byte_ratio);
     snprintf(ret->tot_read_lat, 50, "%ld", fc->tot_read_lat);
     snprintf(ret->tot_write_lat, 50, "%ld", fc->tot_write_lat);
     
