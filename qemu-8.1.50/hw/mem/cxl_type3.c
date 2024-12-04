@@ -1159,7 +1159,7 @@ void ct3_realize(PCIDevice *pci_dev, Error **errp)
 
     char filename[70] = "./";
     g_strlcpy(filename + 2, pci_dev->name, g_utf8_strlen(pci_dev->name, 64));
-    ct3d->log_fd = g_open(filename, O_RDWR | O_CREAT, 0660)
+    ct3d->log_fd = open(filename, O_RDWR | O_CREAT, 0660);
 
     if (!cxl_setup_memory(ct3d, errp)) {
         return;
@@ -1267,7 +1267,7 @@ void ct3_exit(PCIDevice *pci_dev)
     spdm_sock_fini(ct3d->doe_spdm.socket);
     g_free(regs->special_ops);
 
-    g_close(ct3d->log_fd, NULL);
+    close(ct3d->log_fd, NULL);
 
     if (ct3d->dc.host_dc) {
         cxl_destroy_dc_regions(ct3d);
