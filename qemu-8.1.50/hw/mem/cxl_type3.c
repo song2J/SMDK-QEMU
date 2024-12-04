@@ -1267,7 +1267,7 @@ void ct3_exit(PCIDevice *pci_dev)
     spdm_sock_fini(ct3d->doe_spdm.socket);
     g_free(regs->special_ops);
 
-    close(ct3d->log_fd, NULL);
+    close(ct3d->log_fd);
 
     if (ct3d->dc.host_dc) {
         cxl_destroy_dc_regions(ct3d);
