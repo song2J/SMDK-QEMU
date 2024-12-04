@@ -1488,19 +1488,19 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
         return MEMTX_OK;
     }
 
-    if(ct3d->log_fd >= 0) {
-        char buf[32];
-        CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
-        snprintf(buf, sizeof(buf), "%ld %ld\n", fc->tot_write_req + fc->tot_read_req, host_addr);
-
-        write(ct3d->log_fd, buf, strlen(buf));
-    }
-
     int64_t cmmh_expire;
 
     if(ct3d->hostcmmh) {
         /* TODO: save latency info */
         cmmh_expire = cmmh_read(ct3d, as, dpa_offset, attrs, data, size);
+    }
+
+    if(ct3d->log_fd >= 0) {
+        char buf[48];
+        CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
+        snprintf(buf, sizeof(buf), "%ld %ld %ld\n", fc->tot_write_req + fc->tot_read_req, fc->read_cnt, fc->write_cnt);
+
+        write(ct3d->log_fd, buf, strlen(buf));
     }
 
     bool stored = false;
@@ -1543,16 +1543,17 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
         return MEMTX_OK;
     }
 
-    if(ct3d->log_fd >= 0) {
-        char buf[32];
-        CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
-        snprintf(buf, sizeof(buf), "%ld %ld\n", fc->tot_write_req + fc->tot_read_req, host_addr);
-        write(ct3d->log_fd, buf, strlen(buf));
-    }
-
     int64_t cmmh_expire; 
     if(ct3d->hostcmmh) {
         cmmh_expire = cmmh_write(ct3d, as, dpa_offset, attrs, data, size);
+    }
+
+    if(ct3d->log_fd >= 0) {
+        char buf[48];
+        CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
+        snprintf(buf, sizeof(buf), "%ld %ld %ld\n", fc->tot_write_req + fc->tot_read_req, fc->read_cnt, fc->write_cnt);
+
+        write(ct3d->log_fd, buf, strlen(buf));
     }
     MemTxResult ret = address_space_write(as, dpa_offset, attrs, &data, size);
     if(ct3d->hostcmmh){
