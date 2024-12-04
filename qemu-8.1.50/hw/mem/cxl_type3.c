@@ -1491,7 +1491,7 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
     if(ct3d->log_fd >= 0) {
         char buf[32];
         snprintf(buf, sizeof(buf), "%x r\n", host_addr);
-        read(ct3d->log_fd, buf, sizeof(buf));
+        write(ct3d->log_fd, buf, sizeof(buf));
     }
 
     int64_t cmmh_expire;
@@ -1544,7 +1544,7 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
     if(ct3d->log_fd >= 0) {
         char buf[32];
         snprintf(buf, sizeof(buf), "%x w\n", host_addr);
-        read(ct3d->log_fd, buf, sizeof(buf));
+        write(ct3d->log_fd, buf, sizeof(buf));
     }
 
     int64_t cmmh_expire; 
