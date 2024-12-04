@@ -840,7 +840,7 @@ static int64_t cmmh_read(CXLType3Dev* ct3d, AddressSpace *as, uint64_t dpa_offse
     //start time: time
     fc->tt_lat = 0;
     while(1) {
-        fc->tot_write_req++;
+        fc->tot_read_req++;
         res = cache->access(cache, dpa_offset, &victim);
 
         /* Is the entry HIT? */
@@ -1490,8 +1490,9 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
 
     if(ct3d->log_fd >= 0) {
         char buf[32];
-        snprintf(buf, sizeof(buf), "%x r\n", host_addr);
-        write(ct3d->log_fd, buf, sizeof(buf));
+        CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
+        snprintf(buf, sizeof(buf), "%ld,%x\n", fc->tot_write_req + fc->tot_read_req, host_addr);
+        write(ct3d->log_fd, buf, strlen(buf));
     }
 
     int64_t cmmh_expire;
@@ -1543,8 +1544,9 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
 
     if(ct3d->log_fd >= 0) {
         char buf[32];
-        snprintf(buf, sizeof(buf), "%x w\n", host_addr);
-        write(ct3d->log_fd, buf, sizeof(buf));
+        CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
+        snprintf(buf, sizeof(buf), "%ld,%x\n", fc->tot_write_req + fc->tot_read_req, host_addr);
+        write(ct3d->log_fd, buf, strlen(buf));
     }
 
     int64_t cmmh_expire; 
