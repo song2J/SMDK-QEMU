@@ -1157,9 +1157,8 @@ void ct3_realize(PCIDevice *pci_dev, Error **errp)
 
     QTAILQ_INIT(&ct3d->error_list);
 
-    char filename[70] = "./";
-    g_strlcpy(filename + 2, pci_dev->name, g_utf8_strlen(pci_dev->name, 64));
-    ct3d->log_fd = open(filename, O_RDWR | O_CREAT, 0660);
+    char filename[64] = "./tmp";
+    ct3d->log_fd = open(filename, O_RDWR | O_CREAT, 0777);
 
     if (!cxl_setup_memory(ct3d, errp)) {
         return;
@@ -1491,7 +1490,7 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
 
     if(ct3d->log_fd) {
         char buf[32];
-        snprintf(buf, sizeof(buf), "%x r", host_addr);
+        snprintf(buf, sizeof(buf), "%x r\n", host_addr);
         read(ct3d->log_fd, buf, sizeof(buf));
     }
 
@@ -1544,7 +1543,7 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
 
     if(ct3d->log_fd) {
         char buf[32];
-        snprintf(buf, sizeof(buf), "%x w", host_addr);
+        snprintf(buf, sizeof(buf), "%x w\n", host_addr);
         read(ct3d->log_fd, buf, sizeof(buf));
     }
 
