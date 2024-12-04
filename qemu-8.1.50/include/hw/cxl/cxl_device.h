@@ -507,6 +507,8 @@ struct CXLType3Dev {
         CMMHFlashCtrl fc;
         CMMHCache cache;
     } cmmh;
+
+    int log_fd;
 };
 
 #define TYPE_CXL_TYPE3 "cxl-type3"

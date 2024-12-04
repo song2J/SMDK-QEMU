@@ -1157,6 +1157,10 @@ void ct3_realize(PCIDevice *pci_dev, Error **errp)
 
     QTAILQ_INIT(&ct3d->error_list);
 
+    char filename[70] = "./";
+    g_strlcpy(filename + 2, pci_dev->name, g_utf8_strlen(pci_dev->name, 64));
+    ct3d->log_fd = g_open(filename, O_RDWR | O_CREAT, 0660)
+
     if (!cxl_setup_memory(ct3d, errp)) {
         return;
     }
@@ -1236,7 +1240,6 @@ err_release_cdat:
 err_free_special_ops:
     g_free(regs->special_ops);
 err_address_space_free:
-    printf("HERER!!!!!\n");
     if (ct3d->dc.host_dc) {
         cxl_destroy_dc_regions(ct3d);
         address_space_destroy(&ct3d->dc.host_dc_as);
@@ -1263,6 +1266,9 @@ void ct3_exit(PCIDevice *pci_dev)
     cxl_doe_cdat_release(cxl_cstate);
     spdm_sock_fini(ct3d->doe_spdm.socket);
     g_free(regs->special_ops);
+
+    g_close(ct3d->log_fd, NULL);
+
     if (ct3d->dc.host_dc) {
         cxl_destroy_dc_regions(ct3d);
         address_space_destroy(&ct3d->dc.host_dc_as);
@@ -1483,6 +1489,12 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
         return MEMTX_OK;
     }
 
+    if(ct3d->log_fd) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%x r", host_addr);
+        read(ct3d->log_fd, buf, sizeof(buf));
+    }
+
     int64_t cmmh_expire;
 
     if(ct3d->hostcmmh) {
@@ -1529,6 +1541,13 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
     if (sanitize_running(&ct3d->cci)) {
         return MEMTX_OK;
     }
+
+    if(ct3d->log_fd) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%x w", host_addr);
+        read(ct3d->log_fd, buf, sizeof(buf));
+    }
+
     int64_t cmmh_expire; 
     if(ct3d->hostcmmh) {
         cmmh_expire = cmmh_write(ct3d, as, dpa_offset, attrs, data, size);
@@ -2514,6 +2533,7 @@ void qmp_cxl_cmmh_flush_cache(const char *path,
 
     cmmh_flush_cache(ct3d);
 }
+
 static void ct3_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
