@@ -1496,9 +1496,9 @@ MemTxResult cxl_type3_read(PCIDevice *d, hwaddr host_addr, uint64_t *data,
     }
 
     if(ct3d->log_fd >= 0) {
-        char buf[48];
+        char buf[64];
         CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
-        snprintf(buf, sizeof(buf), "%ld %ld %ld\n", fc->tot_write_req + fc->tot_read_req, fc->read_cnt, fc->write_cnt);
+        snprintf(buf, sizeof(buf), "%ld %ld %ld %ld\n", fc->tot_write_req + fc->tot_read_req, host_addr, fc->read_cnt, fc->write_cnt);
 
         write(ct3d->log_fd, buf, strlen(buf));
     }
@@ -1549,9 +1549,9 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
     }
 
     if(ct3d->log_fd >= 0) {
-        char buf[48];
+        char buf[64];
         CMMHFlashCtrl* fc = &(ct3d->cmmh.fc);
-        snprintf(buf, sizeof(buf), "%ld %ld %ld\n", fc->tot_write_req + fc->tot_read_req, fc->read_cnt, fc->write_cnt);
+        snprintf(buf, sizeof(buf), "%ld %ld %ld %ld\n", fc->tot_write_req + fc->tot_read_req, host_addr, fc->read_cnt, fc->write_cnt);
 
         write(ct3d->log_fd, buf, strlen(buf));
     }
